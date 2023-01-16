@@ -1,0 +1,28 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ include "zbi.fullname" . }}-cm-conf
+  labels:
+    {{- include "zbi.labels" . | nindent 4 }}
+data:
+{{ tpl (.Files.Glob "zbi-conf/*").AsConfig . | indent 2 }}
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ include "zbi.fullname" . }}-cm-tmpl
+  labels:
+    {{- include "zbi.labels" . | nindent 4 }}
+data:
+{{ (.Files.Glob "zbi-templates/*").AsConfig | indent 2 }}
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ include "zbi.fullname" . }}-cm-vars
+  labels:
+    {{- include "zbi.labels" . | nindent 4 }}
+data:
+  admin_email: {{ .Values.adminEmail }}
+  admin_user: {{ .Values.adminUser }}
+  log_level: "{{ .Values.controllerLogLevel }}"

@@ -1,0 +1,207 @@
+{{define "NAMESPACE"}}
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: {{.Namespace}}
+  labels:
+    {{- range $key, $value := .Labels}}
+    {{$key}}: {{$value}}
+    {{- end}}
+{{end}}
+
+{{define "DEPLOYMENT"}}
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: project
+  namespace: {{.Namespace}}
+  labels:
+    {{- range $key, $value := .Labels}}
+    {{$key}}: {{$value}}
+    {{- end}}
+    app: zcashd
+  annotations:
+    configmap.reloader.stakater.com/reload: "zcash-conf-{{.Name}},envoy-proxy-conf-{{.Name}}"
+spec:
+  selector:
+    matchLabels:
+      {{- range $key, $value := .Labels}}
+      {{$key}}: {{$value}}
+      {{- end}}
+      app: project
+  template:
+    metadata:
+      labels:
+        {{- range $key, $value := .Labels}}
+        {{$key}}: {{$value}}
+        {{- end}}
+        app: project
+    spec:
+      serviceAccountName: {{.ServiceAccountName}}
+      volumes:
+      - name: zcash-client
+        emptyDir: {}
+      - name: zcash-conf
+        configMap:
+          name: zcash-conf-{{.Name}}
+      - name: envoy-proxy-conf
+        configMap:
+          name: envoy-proxy-conf-{{.Name}}
+      initContainers:
+      - name: init
+        volumeMounts:
+        - name: zcash-conf
+          mountPath: /workspace/zcashconf
+        - name: zcash-data
+          mountPath: /srv/zcashd/.zcash
+        - name: zcash-params
+          mountPath: /srv/zcashd/.zcash-params
+        - name: zcash-client
+          mountPath: /etc/zcashd
+        image: busybox
+        command: ["sh", "-c", "cp /workspace/zcashconf/zcash.conf /srv/zcashd/.zcash/zcash.conf ; touch /etc/zcashd/zcash.conf && chown -R 2001:2001 /srv/zcashd"]
+        securityContext:
+          runAsUser: 0
+          allowPrivilegeEscalation: true
+      containers:
+      - name: node
+        image: {{.ProjectImage}}
+        env:
+        - name: ASSET_PATH_DIRECTORY
+          value: /etc/zbi
+        - name: DATABASE_FACTORY
+          value: ZBI_DATABASE_FACTORY
+        - name: DATABASE_USERNAME
+          valueFrom:
+            secretKeyRef:
+              name: zbi-creds
+              key: db_user
+        - name: DATABASE_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: zbi-creds
+                  key: db_pass
+        - name: DATABASE_URL
+              value: ZBI_DATABASE_URL
+        - name: ZBI_LOG_LEVEL
+          valueFrom:
+            configMapKeyRef:
+              name: zbi-cm-vars
+              key: zbi_log_level
+        - name: ZBI_ADMIN_USER
+              valueFrom:
+                configMapKeyRef:
+                  name: zbi-cm-vars
+                  key: zbi_admin_user
+        - name: ZBI_ADMIN_EMAIL
+              valueFrom:
+                configMapKeyRef:
+                  name: zbi-cm-vars
+                  key: zbi_admin_email
+        - name: ZBI_ADMIN_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: zbi-creds
+                  key: zbi_admin_pass
+        resources:
+          limits:
+            memory: "4Gi"
+            cpu: "2"
+        volumeMounts:
+        - name: zcash-data
+          mountPath: /srv/zcashd/.zcash
+        - name: zcash-params
+          mountPath: /srv/zcashd/.zcash-params
+        - name: zcash-client
+          mountPath: /etc/zcashd
+        ports:
+        - name: http
+          containerPort: {{.Port}}
+      - name: envoy-proxy
+        image: {{.Envoy.Image}}
+        command: {{.Envoy.Command}}
+        ports:
+          - name: json-rpc-proxy
+            containerPort: {{.Envoy.Port}}
+            protocol: TCP
+        volumeMounts:
+          - name: envoy-proxy-conf
+            mountPath: "/etc/envoy"
+            readOnly: true
+{{end}}
+
+{{define "SERVICE"}}
+apiVersion: v1
+kind: Service
+metadata:
+  name: project-svc
+  namespace: {{.Namespace}}
+  labels:
+    {{- range $key, $value := .Labels}}
+    {{$key}}: {{$value}}
+    {{- end}}
+spec:
+  type: ExternalName
+  externalName: controller-svc.zbi.svc.cluster.local
+  ports:
+  - port: 8080
+{{end}}
+
+{{define "AUTHZ_SERVICE"}}
+apiVersion: v1
+kind: Service
+metadata:
+  name: authz-svc
+  namespace: {{.Namespace}}
+  labels:
+    {{- range $key, $value := .Labels}}
+    {{$key}}: {{$value}}
+    {{- end}}
+spec:
+  type: ExternalName
+  externalName: authz-svc.zbi.svc.cluster.local
+  ports:
+  - port: 50051
+{{end}}
+
+{{define "AUTHZ_EXTENSION"}}
+apiVersion: projectcontour.io/v1alpha1
+kind: ExtensionService
+metadata:
+  name: authz-svc
+  namespace: {{.Namespace}}
+  labels:
+    {{- range $key, $value := .Labels}}
+    {{$key}}: {{$value}}
+    {{- end}}
+spec:
+  timeoutPolicy:
+    response: 100s
+    idle: 100s
+  services:
+  - name: authz-svc
+    port: 50051
+{{end}}
+
+{{define "INGRESS"}}
+{
+  "apiVersion": "projectcontour.io/v1",
+  "kind": "HTTPProxy",
+  "metadata": {
+    "name": "project-ingress",
+    "namespace": "{{.Namespace}}",
+    "labels":{}
+  },
+  "spec": {
+    "routes": [{"conditions": [{"prefix": "/"}],"services": [{"name": "project-svc","port": 8080}]}]
+  }
+}
+{{end}}
+
+{{define "INGRESS_INCLUDE"}}
+{
+  "name": "project-ingress",
+  "namespace": "{{.Namespace}}",
+  "conditions": [{"prefix": "/{{.Namespace}}"}]
+}
+{{end}}

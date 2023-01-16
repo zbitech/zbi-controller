@@ -1,0 +1,981 @@
+openapi: 3.0.3
+info:
+  title: ZBI Controller - OpenAPI 3.0
+  description: |-
+    This is
+  termsOfService: https://www.zbitech.net/terms
+  contact:
+    email: info@zbitech.net
+  license:
+    name: Apache 2.0
+    url: https://www.apache.org/licenses/LICENSE-2.0.html
+  version: 0.0.1
+externalDocs:
+  description: Find out more about swagger
+  url: https://swagger.io
+servers:
+  - url: https://apps.zbitech.local/api/v1
+tags:
+  - name: project
+  - name: instance
+  - name: resource
+paths:
+  /projects:
+    post:
+      tags:
+        - project
+      summary: Create a new zbi project
+      description: Create a new zbi project
+      operationId: createProject
+      requestBody:
+        description: Create a new zbi project
+        content:
+          application/json:
+            schema:
+              properties:
+                name:
+                  type: string
+                  description: name of project
+                network:
+                  type: string
+                  description: network for the project
+                  enum:
+                    - testnet
+                    - mainnet
+                    - regnet
+                teamId:
+                  type: string
+                  description: team identifier for the project
+        required: true
+      responses:
+        '200':
+          description: Successful operation
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Project'
+        '400':
+          description: Bad Request
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '401':
+          description: Unauthorized request
+        '403':
+          description: Forbidden
+        '429':
+          description: Too many requests
+        '500':
+          description: Internal Server Error
+        '503':
+          description: Service Unavailable
+      security:
+        - bearerAuth: []
+
+  /projects/{projectId}:
+    get:
+      tags:
+        - project
+      summary: Retrieve a zbi project
+      description: Retrieve a zbi project
+      operationId: retrieveProject
+      parameters:
+        - name: projectId
+          in: path
+          description: id of project
+          required: true
+          explode: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Successful operation
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Project'
+        '400':
+          description: Bad Request
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '401':
+          description: Unauthorized request
+        '403':
+          description: Forbidden
+        '429':
+          description: Too many requests
+        '500':
+          description: Internal Server Error
+        '503':
+          description: Service Unavailable
+      security:
+        - bearerAuth: []
+    delete:
+      tags:
+        - project
+      summary: Delete a zbi project
+      description: Delete a zbi project
+      operationId: deleteProject
+      parameters:
+        - name: projectId
+          in: path
+          description: id of project
+          required: true
+          explode: true
+          schema:
+            type: string
+      responses:
+        '204':
+          description: Project description
+        '400':
+          description: Bad Request
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '401':
+          description: Unauthorized request
+        '403':
+          description: Forbidden
+        '429':
+          description: Too many requests
+        '500':
+          description: Internal Server Error
+        '503':
+          description: Service Unavailable
+      security:
+        - bearerAuth: []
+
+  /projects/{projectId}/repair:
+    post:
+      tags:
+        - project
+      summary: Repair a zbi project
+      description: Repair a zbi project
+      operationId: repairProject
+      parameters:
+        - name: projectId
+          in: path
+          description: id of project
+          required: true
+          explode: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Successful operation
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Project'
+        '400':
+          description: Bad Request
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '401':
+          description: Unauthorized request
+        '403':
+          description: Forbidden
+        '429':
+          description: Too many requests
+        '500':
+          description: Internal Server Error
+        '503':
+          description: Service Unavailable
+      security:
+        - bearerAuth: []
+
+  /instances:
+    post:
+      tags:
+        - instance
+      summary: Create a new zbi instance
+      description: Create a new zbi instance
+      operationId: createInstance
+      requestBody:
+        description: Create a new zbi instance
+        content:
+          application/json:
+            schema:
+              properties:
+                name:
+                  type: string
+                project:
+                  type: string
+                type:
+                  type: string
+                  description: type of instance
+                  enum:
+                    - zcash
+                    - lwd
+                    - zebra
+                request:
+                  $ref: '#/components/schemas/ResourceRequest'
+        required: true
+      responses:
+        '200':
+          description: Successful operation
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Instance'
+        '400':
+          description: Bad Request
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '401':
+          description: Unauthorized request
+        '403':
+          description: Forbidden
+        '429':
+          description: Too many requests
+        '500':
+          description: Internal Server Error
+        '503':
+          description: Service Unavailable
+      security:
+        - bearerAuth: []
+
+  /instances/{projectName}/{instanceName}:
+    get:
+      tags:
+        - instance
+      summary: Retrieve a zbi instance
+      description: Retrieve a zbi instance
+      operationId: retrieveInstance
+      parameters:
+        - name: projectName
+          in: path
+          description: project of target instance
+          required: true
+          explode: true
+          schema:
+            type: string
+        - name: instanceName
+          in: path
+          description: name of target instance
+          required: true
+          explode: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Successful operation
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Instance'
+        '400':
+          description: Bad Request
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '401':
+          description: Unauthorized request
+        '403':
+          description: Forbidden
+        '429':
+          description: Too many requests
+        '500':
+          description: Internal Server Error
+        '503':
+          description: Service Unavailable
+      security:
+        - bearerAuth: []
+    delete:
+      tags:
+        - instance
+      summary: Delete a zbi instance
+      description: Delete a zbi instance
+      operationId: deleteInstance
+      parameters:
+        - name: projectName
+          in: path
+          description: project of target instance
+          required: true
+          explode: true
+          schema:
+            type: string
+        - name: instanceName
+          in: path
+          description: name of target instance
+          required: true
+          explode: true
+          schema:
+            type: string
+      responses:
+        '204':
+          description: Instance deleted
+        '400':
+          description: Bad Request
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '401':
+          description: Unauthorized request
+        '403':
+          description: Forbidden
+        '429':
+          description: Too many requests
+        '500':
+          description: Internal Server Error
+        '503':
+          description: Service Unavailable
+      security:
+        - bearerAuth: []
+
+  /instances/{projectName}/{instanceName}/stop:
+    post:
+      tags:
+        - instance
+      summary: Stop a zbi instance
+      description: Stop a zbi instance
+      operationId: stopInstance
+      parameters:
+        - name: projectName
+          in: path
+          description: project of target instance
+          required: true
+          explode: true
+          schema:
+            type: string
+        - name: instanceName
+          in: path
+          description: name of target instance
+          required: true
+          explode: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Successful operation
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Instance'
+        '400':
+          description: Bad Request
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '401':
+          description: Unauthorized request
+        '403':
+          description: Forbidden
+        '429':
+          description: Too many requests
+        '500':
+          description: Internal Server Error
+        '503':
+          description: Service Unavailable
+      security:
+        - bearerAuth: []
+
+  /instances/{projectName}/{instanceName}/start:
+    post:
+      tags:
+        - instance
+      summary: Start a zbi instance
+      description: Start a zbi instance
+      operationId: startInstance
+      parameters:
+        - name: projectName
+          in: path
+          description: project of target instance
+          required: true
+          explode: true
+          schema:
+            type: string
+        - name: instanceName
+          in: path
+          description: name of target instance
+          required: true
+          explode: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Successful operation
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Instance'
+        '400':
+          description: Bad Request
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '401':
+          description: Unauthorized request
+        '403':
+          description: Forbidden
+        '429':
+          description: Too many requests
+        '500':
+          description: Internal Server Error
+        '503':
+          description: Service Unavailable
+      security:
+        - bearerAuth: []
+
+  /instances/{projectName}/{instanceName}/snapshot:
+    post:
+      tags:
+        - instance
+      summary: Snapshot a zbi instance
+      description: Snapshot a zbi instance
+      operationId: snapshotInstance
+      parameters:
+        - name: projectName
+          in: path
+          description: project of target instance
+          required: true
+          explode: true
+          schema:
+            type: string
+        - name: instanceName
+          in: path
+          description: name of target instance
+          required: true
+          explode: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Successful operation
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Instance'
+        '400':
+          description: Bad Request
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '401':
+          description: Unauthorized request
+        '403':
+          description: Forbidden
+        '429':
+          description: Too many requests
+        '500':
+          description: Internal Server Error
+        '503':
+          description: Service Unavailable
+      security:
+        - bearerAuth: []
+
+  /instances/{projectName}/{instanceName}/schedule:
+    post:
+      tags:
+        - instance
+      summary: Schedule a zbi instance snapshot
+      description: Schedule a zbi instance snapshot
+      operationId: scheduleInstanceSnapshot
+      parameters:
+        - name: projectName
+          in: path
+          description: project of target instance
+          required: true
+          explode: true
+          schema:
+            type: string
+        - name: instanceName
+          in: path
+          description: name of target instance
+          required: true
+          explode: true
+          schema:
+            type: string
+      requestBody:
+        content:
+          application/json:
+            schema:
+              properties:
+                schedule:
+                  type: string
+                  enum:
+                    - daily
+                    - weekly
+                    - monthly
+                hour:
+                  type: integer
+                  format: int32
+      responses:
+        '200':
+          description: Successful operation
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Instance'
+        '400':
+          description: Bad Request
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '401':
+          description: Unauthorized request
+        '403':
+          description: Forbidden
+        '429':
+          description: Too many requests
+        '500':
+          description: Internal Server Error
+        '503':
+          description: Service Unavailable
+      security:
+        - bearerAuth: []
+
+  /instances/{projectName}/{instanceName}/repair:
+    post:
+      tags:
+        - instance
+      summary: Repair a zbi instance
+      description: Repair a zbi instance
+      operationId: repairInstance
+      parameters:
+        - name: projectName
+          in: path
+          description: project of target instance
+          required: true
+          explode: true
+          schema:
+            type: string
+        - name: instanceName
+          in: path
+          description: name of target instance
+          required: true
+          explode: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Successful operation
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Instance'
+        '400':
+          description: Bad Request
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '401':
+          description: Unauthorized request
+        '403':
+          description: Forbidden
+        '429':
+          description: Too many requests
+        '500':
+          description: Internal Server Error
+        '503':
+          description: Service Unavailable
+      security:
+        - bearerAuth: []
+
+  /instances/{projectName}/{instanceName}/pair:
+    post:
+      tags:
+        - instance
+      summary: pair zbi instance
+      description: pair a zbi instance
+      operationId: pairInstance
+      parameters:
+        - name: projectName
+          in: path
+          description: project of target instance
+          required: true
+          explode: true
+          schema:
+            type: string
+        - name: instanceName
+          in: path
+          description: name of target instance
+          required: true
+          explode: true
+          schema:
+            type: string
+      requestBody:
+        content:
+          application/json:
+            schema:
+              properties:
+                peers:
+                  type: array
+                  items:
+                    type: string
+      responses:
+        '200':
+          description: Successful operation
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Instance'
+        '400':
+          description: Bad Request
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '401':
+          description: Unauthorized request
+        '403':
+          description: Forbidden
+        '429':
+          description: Too many requests
+        '500':
+          description: Internal Server Error
+        '503':
+          description: Service Unavailable
+      security:
+        - bearerAuth: []
+
+  /resources/{projectName}/{instanceName}:
+    get:
+      tags:
+        - resource
+      summary: Get zbi resources
+      description: Get zbi resources
+      operationId: retrieveResources
+      parameters:
+        - name: projectName
+          in: path
+          description: project of target instance
+          required: true
+          explode: true
+          schema:
+            type: string
+        - name: instanceName
+          in: path
+          description: name of target instance
+          required: true
+          explode: true
+          schema:
+            type: string
+        - name: name
+          in: query
+          description: name of the resource
+          schema:
+            type: string
+        - name: type
+          in: query
+          schema:
+            type: string
+            enum:
+              - configmap
+              - secret
+              - persistentvolumclaim
+              - deployment
+              - service
+              - volumesnapshot
+              - schedulesnapshot
+              - httpproxy
+      responses:
+        '200':
+          description: Successful operation
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Resource'
+        '400':
+          description: Bad Request
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '401':
+          description: Unauthorized request
+        '403':
+          description: Forbidden
+        '429':
+          description: Too many requests
+        '500':
+          description: Internal Server Error
+        '503':
+          description: Service Unavailable
+      security:
+        - bearerAuth: []
+    delete:
+      tags:
+        - resource
+      summary: Delete zbi resource
+      description: Delete zbi resource
+      operationId: deleteResoruce
+      parameters:
+        - name: projectName
+          in: path
+          description: project of target instance
+          required: true
+          explode: true
+          schema:
+            type: string
+        - name: instanceName
+          in: path
+          description: name of target instance
+          required: true
+          explode: true
+          schema:
+            type: string
+        - name: name
+          in: query
+          description: name of the resource
+          schema:
+            type: string
+        - name: type
+          in: query
+          schema:
+            type: string
+            enum:
+              - configmap
+              - secret
+              - persistentvolumclaim
+              - deployment
+              - service
+              - volumesnapshot
+              - schedulesnapshot
+              - httpproxy
+      responses:
+        '204':
+          description: Successful operation
+        '400':
+          description: Bad Request
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '401':
+          description: Unauthorized request
+        '403':
+          description: Forbidden
+        '429':
+          description: Too many requests
+        '500':
+          description: Internal Server Error
+        '503':
+          description: Service Unavailable
+      security:
+        - bearerAuth: []
+
+components:
+  schemas:
+    Project:
+      type: object
+      properties:
+        id:
+          type: string
+          description: Project identifier
+          example: 83ffec9b-ec1e-494e-8973-ff43171c2c23
+        name:
+          type: string
+          description: Project name
+          example: test
+        network:
+          type: string
+          description: network type
+          example: testnet
+          enum:
+            - testnet
+            - mainnet
+            - regnet
+        owner:
+          type: string
+          description: uid of the project owner
+          example: 83ffec9b-ec1e-494e-8973-ff43171c2c23
+        team:
+          type: string
+          description: uid of the project team
+          example: 83ffec9b-ec1e-494e-8973-ff43171c2c23
+        status:
+          type: string
+          description: Status of instance
+          enum:
+            - new
+            - created
+            - terminating
+            - deleted
+    Instance:
+      type: object
+      properties:
+        id:
+          type: string
+          description: Instance identifier
+          example: 83ffec9b-ec1e-494e-8973-ff43171c2c23
+        project:
+          type: string
+          description: name of instance's project
+        type:
+          type: string
+          description: Type of instance
+          example: zcash
+          enum:
+            - zcash
+            - lwd
+            - zebra
+        name:
+          type: string
+          description: name of instance
+          example: main
+        status:
+          type: string
+          description: Status of instance
+          enum:
+            - new
+            - created
+            - running
+            - stopped
+            - pending
+            - progressing
+            - failed
+            - terminating
+            - deleted
+    ResourceRequest:
+      type: object
+      properties:
+        volumeType:
+          type: string
+          description: Type of volume
+          enum:
+            - eph
+            - pvc
+        volumeSize:
+          type: string
+          description: Size of volume
+          example: 1Gi
+        sourceType:
+          type: string
+          description: Source of volume
+          enum:
+            - none
+            - new
+            - volume
+            - snapshot
+        sourceName:
+          type: string
+          description: name of source
+        sourceProject:
+          type: string
+          description: project for the volume source
+        cpu:
+          type: string
+          description: cpu request for the instance
+          example: 1Gi
+        memory:
+          type: string
+          description: memory request for the instance
+        peers:
+          type: array
+          description: list of peer instances
+          items:
+            type: string
+    Resource:
+      type: object
+      properties:
+        id:
+          type: string
+          description: Resource identifier
+        name:
+          type: string
+          description: Name of resource
+        type:
+          type: string
+          description: Type of resource
+          enum:
+            - configmap
+            - secret
+            - persistentvolumclaim
+            - deployment
+            - service
+            - volumesnapshot
+            - snapshotschedule
+            - httpproxy
+        status:
+          type: string
+          description: Status of resource
+          enum:
+            - created
+            - running
+            - stopped
+            - bound
+            - pending
+            - progressing
+            - failed
+            - terminating
+            - deleted
+        properties:
+          type: object
+          description: resource properties
+    EndpointPolicy:
+      type: object
+      properties:
+        accessType:
+          type: string
+          description: endpoint access type
+          enum:
+            - private
+            - public
+            - selected
+        endpoints:
+          type: array
+          description: list of selected endpoints to be exposed
+          items:
+            type: string
+    FieldError:
+      type: object
+      properties:
+        name:
+          type: string
+          description: name of field
+        code:
+          type: string
+          description: error code
+        error:
+          type: string
+          description: error message
+    ErrorResponse:
+      type: object
+      properties:
+        code:
+          type: integer
+          format: int32
+        type:
+          type: string
+        message:
+          type: string
+        fields:
+          type: array
+          items:
+            $ref: '#/components/schemas/ArrayOfFieldErrors'
+    ArrayOfResources:
+      type: array
+      items:
+        $ref: '#/components/schemas/Resource'
+    ArrayOfEndpointPolicies:
+      type: array
+      items:
+        $ref: '#/components/schemas/EndpointPolicy'
+    ArrayOfFieldErrors:
+      type: array
+      items:
+        $ref: '#/components/schemas/FieldError'
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+

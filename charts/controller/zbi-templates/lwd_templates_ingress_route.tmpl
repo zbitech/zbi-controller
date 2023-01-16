@@ -1,0 +1,15 @@
+{{define "INGRESS"}}
+{
+  "conditions": [{"prefix": "/{{.Name}}"}],
+  "services": [{"name": "lwd-svc-{{.Name}}","port": {{.Envoy.Port}}, "protocol": "h2c"}],
+  "pathRewritePolicy": {"replacePrefix": [{"replacement": "/"}]}
+}
+{{end}}
+
+{{define "INGRESS_STOPPED"}}
+{
+  "conditions": [{"prefix": "/{{.Name}}"}],
+  "services": [{"name": "project-svc","port": 8080}],
+  "pathRewritePolicy": {"replacePrefix": [{"replacement": "/stopped", "protocol": "h2c"}]}
+}
+{{end}}

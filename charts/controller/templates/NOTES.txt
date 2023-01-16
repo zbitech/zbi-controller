@@ -1,0 +1,2 @@
+
+kubectl -n zbi get secrets zbi-password -o json | jq -r '.data | with_entries(.value |= @base64d)'

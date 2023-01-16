@@ -1,0 +1,124 @@
+{{define "invitation_subject"}}ZBI Registration Invite{{end}}
+
+{{define "invitation_plainBody"}}
+You have been invited to register for a ZBI account. Click on the link below to start the registration process.
+
+{{.RegisterURL}}?key={{.Key}}
+
+Thanks,
+The ZBI Team
+{{end}}
+
+{{define "invitation_htmlBody"}}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+</head>
+<body>
+
+   <p>You have been invited to register for a ZBI account. Click on the link below to start the registration process</p>
+
+   <p><a href="{{.RegisterURL}}?key={{.Key}}">{{.RegisterURL}}?key={{.Key}}</a></p>
+
+   <p>Thanks,</p>
+   <p>The ZBI Team</p>
+</html>
+{{end}}
+
+{{define "team_invitation_subject"}}ZBI Registration Invite{{end}}
+
+{{define "team_invitation_plainBody"}}
+You have been invited to register for a ZBI account with {{.Team}} team. Click on the link below to start the registration process.
+
+{{.RegisterURL}}?key={{.Key}}
+
+Thanks,
+The ZBI Team
+{{end}}
+
+{{define "team_invitation_htmlBody"}}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+</head>
+<body>
+
+   <p>You have been invited to register for a ZBI account with team {{.Team}}. Click on the link below to start the registration process</p>
+
+   <p><a href="{{.RegisterURL}}?key={{.Key}}">{{.RegisterURL}}?key={{.Key}}</a></p>
+
+   <p>Thanks,</p>
+   <p>The ZBI Team</p>
+</html>
+{{end}}
+
+
+{{define "welcome_subject"}}Welcome to ZBI{{end}}
+
+{{define "welcome_plainBody"}}
+Dear {{.Name}},
+
+Your ZBI account has been created. You can access the account using the following URL below.
+
+Login ID: {{.UserId}}
+Password: {{.Password}}
+
+{{.LoginURL}}
+
+(You can also bookmark the above URL for future use)
+
+Thanks,
+
+The ZBI Team
+{{end}}
+
+{{define "welcome_htmlBody"}}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+</head>
+<body>
+   <p>Dear {{.Name}},</p>
+   <p>Your ZBI account has been created.</p>
+   <p>You can access the account using the following URL below.</p>
+
+   <ul>
+     <li>Login ID: {{.UserId}}
+     <li>Password: {{.Password}}
+   <ul>
+
+   <p><a href="{{.LoginURL}}">{{.LoginURL}}</a></p>
+
+   <p>(You can also bookmark the above URL for future use)</p>
+</html>
+{{end}}
+
+{{define "expiration_subject"}}ZBI Registration Expired{{end}}
+
+{{define "expiration_plainBody"}}
+
+Unfortunately, your ZBI registration has expired.
+
+Thanks,
+The ZBI Team
+{{end}}
+
+{{define "expiration_htmlBody"}}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+</head>
+<body>
+
+<p>Unfortunately, your ZBI registration has expired.</p>
+
+</html>
+{{end}}

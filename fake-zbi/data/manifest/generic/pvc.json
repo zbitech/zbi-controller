@@ -1,0 +1,23 @@
+{
+  "apiVersion": "v1",
+  "kind": "PersistentVolumeClaim",
+  "metadata": {
+    "name": "pvc-instance",
+    "namespace": "default",
+    "labels": {}
+  },
+  "spec": {
+    "accessModes":["ReadWriteOnce"],
+    "storageClassName": "csi-hostpath-sc",
+    "dataSource": {
+      "name": "",
+      "kind": "",
+      "apiGroup": ""
+    },
+    "resources": {
+      "requests": {
+        "storage": "1Gi"
+      }
+    }
+  }
+}

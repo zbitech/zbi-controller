@@ -1,0 +1,8 @@
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: project
+  labels:
+    {{- range $key, $value := .Labels}}
+      {{$key}}: {{$value}}
+      {{- end}}

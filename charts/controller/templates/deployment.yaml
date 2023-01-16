@@ -1,0 +1,80 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ include "zbi.fullname" . }}-controller
+  labels:
+    {{- include "zbi.labels" . | nindent 4 }}
+    app.zbi.instance: controller
+spec:
+{{- if not .Values.autoscaling.enabled }}
+  replicas: {{ .Values.replicaCount }}
+{{- end }}
+  selector:
+    matchLabels:
+      {{- include "zbi.labels" . | nindent 6 }}
+      app.zbi.instance: controller
+  template:
+    metadata:
+      annotations:
+        configmap.reloader.stakater.com/reload: "{{ include "zbi.fullname" . }}-cm-conf,{{ include "zbi.fullname" . }}-cm-tmpl"
+        secret.reloader.stakater.com/reload: "zbi-password,zbi-database"
+      labels:
+        {{- include "zbi.labels" . | nindent 8 }}
+        app.zbi.instance: controller
+    spec:
+      serviceAccountName: {{ include "zbi.serviceAccountName" . }}
+      volumes:
+        - name: zbi-cm-conf
+          configMap:
+            name: {{ include "zbi.fullname" . }}-cm-conf
+        - name: zbi-cm-tmpl
+          configMap:
+            name: {{ include "zbi.fullname" . }}-cm-tmpl
+      containers:
+        - name: controller
+          image: "{{ .Values.image.repository }}:{{ .Values.image.tag | default .Chart.AppVersion }}"
+          imagePullPolicy: {{ .Values.image.pullPolicy }}
+          env:
+            - name: ASSET_PATH_DIRECTORY
+              value: /etc/zbi
+            - name: DATABASE_FACTORY
+              value: {{ .Values.controller.database.type}}
+            - name: DATABASE_URL
+              valueFrom:
+                secretKeyRef:
+                  name: zbi-database
+                  key: connectionString
+            - name: ZBI_LOG_LEVEL
+              valueFrom:
+                configMapKeyRef:
+                  name: {{ include "zbi.fullname" . }}-cm-vars
+                  key: log_level
+            - name: ZBI_ADMIN_USER
+              valueFrom:
+                configMapKeyRef:
+                  name: {{ include "zbi.fullname" . }}-cm-vars
+                  key: admin_user
+            - name: ZBI_ADMIN_EMAIL
+              valueFrom:
+                configMapKeyRef:
+                  name: {{ include "zbi.fullname" . }}-cm-vars
+                  key: admin_email
+            - name: ZBI_ADMIN_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: zbi-password
+                  key: password
+          volumeMounts:
+            - name: zbi-cm-conf
+              mountPath: /etc/zbi
+              readOnly: true
+            - name: zbi-cm-tmpl
+              mountPath: /etc/zbi/templates
+              readOnly: true
+          ports:
+            - name: http
+              containerPort: {{ .Values.service.controllerPort }}
+              protocol: TCP
+            - name: grpc
+              containerPort: {{ .Values.service.authzPort }}
+              protocol: TCP

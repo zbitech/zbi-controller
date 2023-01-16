@@ -1,0 +1,24 @@
+{
+  "apiVersion": "snapscheduler.backube/v1",
+  "kind": "SnapshotSchedule",
+  "metadata": {
+    "name": "pvc-instance-hourly",
+    "namespace": "default",
+    "labels": {}
+  },
+  "spec": {
+    "claimSelector": {
+      "matchLabels": {}
+    },
+    "disabled": false,
+    "retention": {
+      "expires": "1h",
+      "maxCount": 1
+    },
+    "schedule": "0 * * * *",
+    "snapshotTemplate": {
+      "labels": {},
+      "snapshotClassName": "csi-hostpath-snapclass"
+    }
+  }
+}

@@ -1,0 +1,330 @@
+{{define "NAMESPACE"}}
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: project
+  labels:
+    platform: zbi
+    project: project
+    network: testnet
+{{end}}
+    
+{{define "ZCASH_CONF"}}
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: zcash-conf-instance
+  namespace: project
+  labels:
+    platform: zbi
+    project: project
+    instance: instance
+    network: testnet
+    type: zcash
+data:
+  zcash.conf: |
+    testnet=1
+    addnode=test.z.zcash
+    printtoconsole=1
+    server=1
+{{end}}
+
+{{define "ENVOY_CONF"}}
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: envoy-proxy-conf-instance
+  namespace: project
+  labels:
+    platform: zbi
+    project: project
+    instance: instance
+    network: testnet
+    type: zcash
+data:
+  envoy.yaml: |
+    static_resources:
+      listeners:
+      - address:
+          socket_address:
+            address: 0.0.0.0
+            port_value: 28232
+
+        filter_chains:
+        - filters:
+          - name: envoy.filters.network.http_connection_manager
+            typed_config:
+              "@type": type.googleapis.com/envoy.extensions.filters.network.http_connection_manager.v3.HttpConnectionManager
+              use_remote_address: true
+              skip_xff_append: false
+              xff_num_trusted_hops: 0
+              stat_prefix: ingress_http
+              route_config:
+                name: local_route
+                virtual_hosts:
+                - name: service
+                  domains:
+                  - "*"
+                  routes:
+                  - match:
+                      prefix: "/"
+                    request_headers_to_add:
+                    - header:
+                        key: "Authorization"
+                        value: "Basic emNhc2g6cGFzc3dvcmQ="
+                      append: false
+                    route:
+                      cluster: zcash
+                      #prefix_rewrite: "/"
+              http_filters:
+              - name: envoy.filters.http.router
+                typed_config: {}
+
+      clusters:
+      - name: zcash
+        connect_timeout: 2.0s
+        type: strict_dns
+        load_assignment:
+          cluster_name: zcash
+          endpoints:
+          - lb_endpoints:
+            - endpoint:
+                address:
+                  socket_address:
+                    address: 127.0.0.1
+                    port_value: 18232
+{{end}}
+
+{{define "CREDENTIALS"}}
+apiVersion: v1
+kind: Secret
+metadata:
+  name: credentials-main
+  namespace: project
+  labels:
+    platform: zbi
+    project: project
+    instance: instance
+    network: testnet
+    type: zcash
+data:
+  username: emNhc2g=
+  password: cGFzc3dvcmQ=
+{{end}}
+
+{{define "DEPLOYMENT"}}
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: zcash-node-instance
+  namespace: project
+  labels:
+    platform: zbi
+    project: project
+    instance: instance
+    network: testnet
+    type: zcash
+    app: zcashd
+  annotations:
+    configmap.reloader.stakater.com/reload: "zcash-conf-instance,envoy-proxy-conf-instance"
+    secret.reloader.stakater.com/reload: "credentials-instance"
+spec:
+  selector:
+    matchLabels:
+      platform: zbi
+      project: project
+      instance: instance
+      network: testnet
+      type: zcash
+      app: zcashd
+  template:
+    metadata:
+      labels:
+        platform: zbi
+        project: project
+        instance: instance
+        network: testnet
+        type: zcash
+        app: zcashd
+    spec:
+      serviceAccountName: zbi
+      securityContext:
+        runAsUser: 2001
+        runAsGroup: 2001
+        fsGroup: 2001
+      volumes:
+      - name: zcash-client
+        emptyDir: {}
+      - name: zcash-conf
+        configMap:
+          name: zcash-conf-{{.Name}}
+      - name: envoy-proxy-conf
+        configMap:
+          name: envoy-proxy-conf-{{.Name}}
+# - TODO add support for ephemeral volume
+#
+      - name: zcash-data
+        persistentVolumeClaim:
+          claimName: instance-12345
+      initContainers:
+      - name: init
+        volumeMounts:
+        - name: zcash-conf
+          mountPath: /workspace/zcashconf
+        - name: zcash-data
+          mountPath: /srv/zcashd/.zcash
+          subPath: .zcash
+        - name: zcash-client
+          mountPath: /etc/zcashd
+        image: busybox
+        command: ["sh", "-c", "cp /workspace/zcashconf/zcash.conf /srv/zcashd/.zcash/zcash.conf ; touch /etc/zcashd/zcash.conf && chown -R 2001:2001 /srv/zcashd"]
+        securityContext:
+          runAsUser: 0
+          allowPrivilegeEscalation: true
+      containers:
+      - name: node
+        image: electriccoinco/zcashd:5.3.0
+        lifecycle:
+          preStop:
+            exec:
+              command: ["/bin/sh", "-c", "zcash-cli -rpcuser=$(ZCASHD_RPCUSER) -rpcpassword=$(ZCASHD_RPCPASSWORD) stop"]
+        env:
+        - name: ZCASHD_RPCUSER
+          valueFrom:
+            secretKeyRef:
+              name: credentials-instance
+              key: username
+        - name: ZCASHD_RPCPASSWORD
+          valueFrom:
+            secretKeyRef:
+              name: credentials-instance
+              key: password
+        resources:
+          limits:
+            memory: "8Gi"
+            cpu: "2"
+# TODO - add memory and cpu requests
+#
+        volumeMounts:
+        - name: zcash-conf
+          mountPath: /workspace/zcashconf
+        - name: zcash-data
+          mountPath: /srv/zcashd/.zcash
+          subPath: .zcash
+        - name: zcash-data
+          mountPath: /srv/zcashd/.zcash-params
+          subPath: .zcash-params
+        - name: zcash-client
+          mountPath: /etc/zcashd
+        ports:
+        - name: json-rpc
+          containerPort: 18232
+      - name: metrics
+        image: electriccoinco/zcashd_exporter:v0.3.6
+        command:
+        - zcashd_exporter
+        args:
+        - --web.listen-address=:9100
+        - --rpc.port=18232
+        - --rpc.user=$(ZCASHD_RPCUSER)
+        - --rpc.password=$(ZCASHD_RPCPASSWORD)
+        - --zcash.conf.path=/etc/zcashd/zcash.conf
+        env:
+        - name: ZCASHD_RPCUSER
+          valueFrom:
+            secretKeyRef:
+              name: credentials-zcash
+              key: username
+        - name: ZCASHD_RPCPASSWORD
+          valueFrom:
+            secretKeyRef:
+              name: credentials-zcash
+              key: password
+        # resources:
+        #   limits:
+        #     memory: "64Mi"
+        #     cpu: "250m"
+        volumeMounts:
+        - name: zcash-client
+          mountPath: /etc/zcashd
+        ports:
+        - name: metrics-http
+          containerPort: 9100
+      - name: envoy
+        image: envoyproxy/envoy:v1.20-latest
+        command: ["/usr/local/bin/envoy", "-c", "/etc/envoy/envoy.yaml", "--log-level", "info"]
+        ports:
+          - name: json-rpc-proxy
+            containerPort: 28232
+            protocol: TCP
+        volumeMounts:
+          - name: envoy-proxy-conf
+            mountPath: "/etc/envoy"
+            readOnly: true
+{{end}}
+
+{{define "SERVICE"}}
+apiVersion: v1
+kind: Service
+metadata:
+  name: zcashd-svc-instance
+  namespace: project
+  labels:
+    platform: zbi
+    project: project
+    instance: instance
+    network: testnet
+    type: zcash
+spec:
+  selector:
+    project: project
+    instance: instance
+    network: testnet
+    app: zcashd
+  ports:
+    - name: json-rpc
+      port: 18232
+      targetPort: 18232
+    - name: metrics-http
+      port: 9100
+      targetPort: 9100
+    - name: json-rpc-proxy
+      port: 28232
+      targetPort: 28232
+{{end}}
+  
+{{define "VOLUME"}}
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: instance-12345
+  namespace: project
+  labels:
+    platform: zbi
+    project: project
+    instance: instance
+    type: zcash
+    network: testnet
+spec:
+  accessModes:
+    - ReadWriteOnce
+  resources:
+    requests:
+      storage: 1Gi
+{{end}}
+  
+{{define "INGRESS"}}
+{
+  "conditions": [{"prefix": "/instance"}],
+  "services": [{"name": "zcashd-svc-instance","port": 28232}],
+  "pathRewritePolicy": {"replacePrefix": [{"replacement": "/"}]}
+}
+{{end}}
+
+{{define "INGRESS_STOPPED"}}
+{
+  "conditions": [{"prefix": "/instance"}],
+  "services": [{"name": "project-svc","port": 8080}],
+  "pathRewritePolicy": {"replacePrefix": [{"replacement": "/stopped"}]}
+}
+{{end}}

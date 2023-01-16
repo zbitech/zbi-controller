@@ -1,0 +1,54 @@
+{{- if .Values.ingress.enabled -}}
+{{- $fullName := include "zbi.fullname" . -}}
+{{- $svcPort := .Values.service.controllerPort -}}
+apiVersion: projectcontour.io/v1
+kind: HTTPProxy
+metadata:
+  name: controller-proxy
+  labels:
+    {{- include "zbi.labels" . | nindent 4 }}
+  {{- with .Values.ingress.controller.annotations }}
+  annotations:
+    {{- toYaml . | nindent 4 }}
+  {{- end }}
+spec:
+  virtualhost:
+    fqdn: {{ .Values.ingress.controller.host}}
+{{- if .Values.ingress.controller.tls }}
+    tls:
+      secretName: {{ .Values.ingress.controller.tls.secretName }}
+{{- end }}
+  routes:
+    - conditions:
+        - prefix: /
+      services:
+        - name: {{ include "zbi.fullname" . }}-svc
+          port: {{ $svcPort }}
+---
+apiVersion: projectcontour.io/v1
+kind: HTTPProxy
+metadata:
+  name: zbi-proxy
+  labels:
+    {{- include "zbi.labels" . | nindent 4 }}
+  {{- with .Values.ingress.controller.annotations }}
+  annotations:
+    {{- toYaml . | nindent 4 }}
+  {{- end }}
+spec:
+  virtualhost:
+    fqdn: {{ .Values.ingress.endpoint.host}}
+{{- if .Values.ingress.endpoint.tls }}
+    tls:
+      secretName: {{ .Values.ingress.endpoint.tls.secretName }}
+{{- end }}
+  routes:
+    - conditions:
+        - prefix: /
+      services:
+        - name: {{ include "zbi.fullname" . }}-svc
+          port: {{ $svcPort }}
+      pathRewritePolicy:
+        replacePrefix:
+          - replacement: /status
+{{- end }}

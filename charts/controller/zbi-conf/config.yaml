@@ -1,0 +1,117 @@
+features:
+  emailServiceEnabled: {{ .Values.controller.features.emailServiceEnabled}}
+  registrationInviteEnabled: {{ .Values.controller.features.registrationInviteEnabled}}
+  createAdminUser: {{ .Values.controller.features.createAdminUser}}
+  accessAuthorizationEnabled: {{ .Values.controller.features.accessAuthorizationEnabled}}
+  teamsEnabled: {{ .Values.controller.features.teamsEnabled}}
+  apiKeysEnabled: {{ .Values.controller.features.apiKeysEnabled}}
+assetsPath: /etc/zbi
+kubernetes:
+  inCluster: true
+  kubeConfig: /etc/zbi/kubeconfig
+  informer:
+    requeueLimit: {{ .Values.controller.kubernetes.informer.requeueLimit}}
+    requeueDelay: {{ .Values.controller.kubernetes.informer.requeueDelay}}
+repository:
+  database:
+    factory: {{ .Values.controller.repository.database.factory}}
+    url: {{ .Values.controller.repository.database.url}}
+    name: {{ .Values.controller.repository.database.name}}
+  authentication:
+    type: {{ .Values.controller.repository.authentication.type}}
+  jwtConfig:
+    secretKey: {{ .Values.controller.repository.jwtConfig.secretKey}}
+mailer:
+  host: {{ .Values.controller.mailer.host }}
+  port: {{ .Values.controller.mailer.port }}
+  username: {{ .Values.controller.mailer.username }}
+  password: {{ .Values.controller.mailer.password }}
+  sender: {{ .Values.controller.mailer.sender }}
+  templateFiles:
+    - templates/welcome_email.tmpl
+    - templates/project_action_emai.tmpl
+    - templates/instance_action_email.tmpl
+    - templates/team_action_email.tmpl
+    - templates/team_member_action_email.tmpl
+cors:
+  trustedOrigins: ["api.alphega.io", "www.alphega.io"]
+envoy:
+  image: envoyproxy/envoy:v1.20-latest
+  command: ["/usr/local/bin/envoy", "-c", "/etc/envoy/envoy.yaml", "--log-level", "info"]
+  timeout: 2.0
+  authServerURL: controller-zbi-svc.zbi.svc.cluster.local
+  authServerPort: 50051
+  authenticationEnabled: true
+lookup:
+  zcash: "Zcash Node"
+  lwd: "Lightwallet Server"
+  bronze: "Bronze-Level Subscription"
+  team_member: "Team Member Subscription"
+  v1: "Version 1"
+  role_owner: "Resource Owner"
+  role_user: "Resource User"
+  team_owner: "Team Owner"
+  team_admin: "Team Admin"
+  team_user: "Team Member"
+  testnet: "testnet"
+  mainnet: "mainnet"
+  snapshotType_snapshot: "Instant"
+  snapshotType_schedule: "Scheduled"
+  scheduleType_hourly: "Hourly"
+  scheduleType_daily: "Daily"
+  scheduleType_weekly: "Weekly"
+  scheduleType_monthly: "Monthly"
+  methodAccessType_private: "Private"
+  methodAccessType_public: "Public"
+  methodAccessType_selected: "Selected"
+controller:
+  Informers:
+  {{- with .Values.controller.kubernetes.informer.Informers }}
+  {{- toYaml . | nindent 4 }}
+  {{- end }}
+policy:
+  imageRegistries:
+  {{- with .Values.controller.policy.imageRegistries }}
+  {{- toYaml . | nindent 4 }}
+  {{- end }}
+  tokenExpirationPolicy: {{ .Values.controller.policy.tokenExpirationPolicy}}
+  storageClasses: ["hostpath"]
+  storageClass: {{ .Values.controller.policy.storageClass}}
+  snapshotClass: {{ .Values.controller.policy.snapshotClass}}
+  domain: {{ .Values.ingress.endpoint.host }}
+  certName: {{ .Values.ingress.endpoint.tls.secretName}}
+  serviceAccount: default
+  networkTypes:
+  {{- with .Values.controller.policy.networkTypes }}
+  {{- toYaml . | nindent 4 }}
+  {{- end }}
+  instanceTypes:
+  {{- with .Values.controller.policy.instanceTypes }}
+  {{- toYaml . | nindent 4 }}
+  {{- end }}
+  maxBackupCount: {{ .Values.controller.policy.maxBackupCount }}
+  backupExpiration: {{ .Values.controller.policy.backupExpiration }}
+  roles:
+  {{- with .Values.controller.policy.roles }}
+  {{- toYaml . | nindent 4 }}
+  {{- end }}
+  levels:
+  {{- with .Values.controller.policy.levels }}
+  {{- toYaml . | nindent 4 }}
+  {{- end }}
+  snapshotTypes:
+  {{- with .Values.controller.policy.snapshotTypes }}
+  {{- toYaml . | nindent 4 }}
+  {{- end }}
+  scheduleTypes:
+  {{- with .Values.controller.policy.scheduleTypes }}
+  {{- toYaml . | nindent 4 }}
+  {{- end }}
+  methodAccessTypes:
+  {{- with .Values.controller.policy.endpointAccessTypes }}
+  {{- toYaml . | nindent 4 }}
+  {{- end }}
+{{- with .Values.controller.policy.subscriptionPolicies}}
+  subscriptionPolicies:
+    {{- toYaml . | nindent 4 }}
+{{- end}}

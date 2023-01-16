@@ -1,0 +1,26 @@
+{
+  "apiVersion": "projectcontour.io/v1",
+  "kind": "HTTPProxy",
+  "metadata": {
+    "name": "zbi-proxy",
+    "namespace": "default",
+    "labels": {}
+  },
+  "spec": {
+    "virtualhost": {
+      "fqdn": "api.zbitech.local",
+      "tls": {
+        "secretName": "cert-manager/zbi-tls"
+      }
+    },
+    "includes": [
+      {
+        "name": "project",
+        "namespace": "project",
+        "conditions": [
+          {"prefix": "/project"}
+        ]
+      }
+    ]
+  }
+}

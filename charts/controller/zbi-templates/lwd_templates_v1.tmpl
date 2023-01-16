@@ -1,0 +1,364 @@
+{{define "LWD_CONF"}}
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: lwd-conf-{{.Name}}
+  namespace: {{.Namespace}}
+  labels:
+    {{- range $key, $value := .Labels}}
+    {{$key}}: {{$value}}
+    {{- end}}
+data:
+  request: |
+    {{.Properties.Request}}
+  LWD_LOG_LEVEL: "{{.Properties.LogLevel}}"
+  ZCASHD_RPCHOST: "{{.Properties.ZcashInstance}}"
+  ZCASHD_RPCPORT: "{{.Properties.ZcashPort}}"
+{{end}}
+
+{{define "ZCASH_CONF"}}
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: zcash-conf-{{.Name}}
+  namespace: {{.Namespace}}
+  labels:
+    {{- range $key, $value := .Labels}}
+    {{$key}}: {{$value}}
+    {{- end}}
+data:
+  zcash.conf: |
+    rpcport={{.Properties.ZcashPort}}
+{{end}}
+
+{{define "ENVOY_CONF"}}
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: envoy-proxy-conf-{{.Name}}
+  namespace: {{.Namespace}}
+  labels:
+    {{- range $key, $value := .Labels}}
+    {{$key}}: {{$value}}
+    {{- end}}
+data:
+  envoy.yaml: |
+    static_resources:
+      listeners:
+      - address:
+          socket_address:
+            address: 0.0.0.0
+            port_value: {{.Envoy.Port}}
+
+        filter_chains:
+        - filters:
+          - name: envoy.filters.network.http_connection_manager
+            typed_config:
+              "@type": type.googleapis.com/envoy.extensions.filters.network.http_connection_manager.v3.HttpConnectionManager
+              use_remote_address: true
+              skip_xff_append: false
+              xff_num_trusted_hops: 0
+              stat_prefix: ingress_http
+              route_config:
+                name: local_route
+                virtual_hosts:
+                - name: service
+                  domains:
+                  - "*"
+                  routes:
+                  - match:
+                      prefix: "/"
+                      grpc:
+                    route:
+                      cluster: lwd
+                      max_stream_duration:
+                        grpc_timeout_header_max: {{.Envoy.Timeout}}s
+                  cors:
+                    allow_origin_string_match:
+                      - prefix: "*"
+                    allow_methods: GET, PUT, DELETE, POST, OPTIONS
+                    allow_headers: keep-alive,user-agent,cache-control,content-type,content-transfer-encoding,custom-header-1,x-accept-content-transfer-encoding,x-accept-response-streaming,x-user-agent,x-grpc-web,grpc-timeout,authorization,x-api-key
+                    max_age: "1728000"
+                    expose_headers: custom-header-1,grpc-status,grpc-message
+
+              http_filters:
+{{- if .Envoy.AccessAuthorization}}
+              - name: envoy.filters.http.ext_authz
+                typed_config:
+                  "@type": type.googleapis.com/envoy.extensions.filters.http.ext_authz.v3.ExtAuthz
+                  transport_api_version: V3
+                  grpc_service:
+                    envoy_grpc:
+                      cluster_name: ext-authz
+                    timeout: {{.Envoy.Timeout}}s
+{{- end}}
+              - name: envoy.filters.http.grpc_web
+                typed_config:
+                  "@type": type.googleapis.com/envoy.extensions.filters.http.grpc_web.v3.GrpcWeb
+              - name: envoy.filters.http.cors
+                typed_config:
+                  "@type": type.googleapis.com/envoy.extensions.filters.http.cors.v3.Cors
+              - name: envoy.filters.http.router
+                typed_config:
+                  "@type": type.googleapis.com/envoy.extensions.filters.http.router.v3.Router
+
+      clusters:
+      - name: lwd
+        connect_timeout: {{.Envoy.Timeout}}s
+        type: strict_dns
+        typed_extension_protocol_options:
+          envoy.extensions.upstreams.http.v3.HttpProtocolOptions:
+            "@type": type.googleapis.com/envoy.extensions.upstreams.http.v3.HttpProtocolOptions
+            explicit_http_config:
+              http2_protocol_options: {}
+        load_assignment:
+          cluster_name: lwd
+          endpoints:
+          - lb_endpoints:
+            - endpoint:
+                address:
+                  socket_address:
+                    address: 127.0.0.1
+                    port_value: {{.Ports.GRPC}}
+{{- if .Envoy.AccessAuthorization}}
+      - name: ext-authz
+        connect_timeout: {{.Envoy.Timeout}}s
+        type: strict_dns
+        typed_extension_protocol_options:
+          envoy.extensions.upstreams.http.v3.HttpProtocolOptions:
+            "@type": type.googleapis.com/envoy.extensions.upstreams.http.v3.HttpProtocolOptions
+            explicit_http_config:
+              http2_protocol_options: {}
+        load_assignment:
+          cluster_name: ext-authz
+          endpoints:
+          - lb_endpoints:
+            - endpoint:
+                address:
+                  socket_address:
+                    address: {{.Envoy.AuthServerURL}}
+                    port_value: {{.Envoy.AuthServerPort}}
+{{- end}}
+{{end}}
+
+{{define "DEPLOYMENT"}}
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: lwd-node-{{.Name}}
+  namespace: {{.Namespace}}
+  labels:
+    {{- range $key, $value := .Labels}}
+    {{$key}}: {{$value}}
+    {{- end}}
+    app: lwd
+  annotations:
+    configmap.reloader.stakater.com/reload: "envoy-proxy-conf-{{.Name}},lwd-conf-{{.Name}},zcash-conf-{{.Name}}"
+{{- if .TLSEnabled}}
+    secret.reloader.stakater.com/reload: "lwd-cert-{{.Name}},credentials-{{.Properties.ZcashInstanceName}}"
+{{- else}}
+    secret.reloader.stakater.com/reload: "credentials-{{.Properties.ZcashInstanceName}}"
+{{- end}}
+spec:
+  selector:
+    matchLabels:
+      {{- range $key, $value := .Labels}}
+      {{$key}}: {{$value}}
+      {{- end}}
+      app: lwd
+  template:
+    metadata:
+      labels:
+        {{- range $key, $value := .Labels}}
+        {{$key}}: {{$value}}
+        {{- end}}
+        app: lwd
+    spec:
+      serviceAccountName: {{.ServiceAccountName}}
+      securityContext:
+        runAsUser: 2002
+        runAsGroup: 2002
+        fsGroup: 2002
+      volumes:
+      - name: zcash-conf
+        configMap:
+          name: zcash-conf-{{.Name}}
+      - name: lwd-data
+        persistentVolumeClaim:
+          claimName: {{.DataVolumeName}}
+{{- if .TLSEnabled}}
+      - name: lwd-cert
+        secret:
+          secretName: lwd-cert-{{.Name}}
+          defaultMode: 0400
+{{- end}}
+      - name: envoy-proxy-conf
+        configMap:
+          name: envoy-proxy-conf-{{.Name}}
+      initContainers:
+      - name: init
+        volumeMounts:
+        - name: lwd-data
+          mountPath: /var/lib/lightwalletd
+        image: busybox
+        command: ["sh", "-c", "chown -R 2002:2002 /var/lib/lightwalletd"]
+        securityContext:
+          runAsUser: 0
+          allowPrivilegeEscalation: true
+      containers:
+      - name: node
+        image: {{.Images.Lightwallet}}
+        args:
+          - --grpc-bind-addr=0.0.0.0:{{.Ports.GRPC}}
+          - --http-bind-addr=0.0.0.0:{{.Ports.HTTP}}
+          - --rpchost=$(ZCASHD_RPCHOST)
+          - --rpcport=$(ZCASHD_RPCPORT)
+          - --rpcuser=$(ZCASHD_RPCUSER)
+          - --rpcpassword=$(ZCASHD_RPCPASSWORD)
+          - --zcash-conf-path=/etc/lightwalletd/conf/zcash.conf
+          - --log-file=/dev/stdout
+          - --log-level=$(LWD_LOG_LEVEL)
+          - --data-dir=/var/lib/lightwalletd
+{{- if .TLSEnabled}}
+          - --tls-cert /etc/lightwalletd/cert/cert.pem
+          - --tls-key /etc/lightwalletd/cert/key.pem
+{{- else}}
+          - --no-tls-very-insecure
+{{- end}}
+        env:
+          - name: LWD_LOG_LEVEL
+            valueFrom:
+              configMapKeyRef:
+                name: lwd-conf-{{.Name}}
+                key: LWD_LOG_LEVEL
+          - name: ZCASHD_RPCHOST
+            valueFrom:
+              configMapKeyRef:
+                name: lwd-conf-{{.Name}}
+                key: ZCASHD_RPCHOST
+          - name: ZCASHD_RPCPORT
+            valueFrom:
+              configMapKeyRef:
+                name: lwd-conf-{{.Name}}
+                key: ZCASHD_RPCPORT
+          - name: ZCASHD_RPCUSER
+            valueFrom:
+              secretKeyRef:
+                name: credentials-{{.Properties.ZcashInstanceName}}
+                key: username
+          - name: ZCASHD_RPCPASSWORD
+            valueFrom:
+              secretKeyRef:
+                name: credentials-{{.Properties.ZcashInstanceName}}
+                key: password
+        ports:
+        - name: lwd-grpc
+          containerPort: {{.Ports.GRPC}}
+        - name: lwd-http
+          containerPort: {{.Ports.HTTP}}
+        volumeMounts:
+          - name: zcash-conf
+            mountPath: /etc/lightwalletd/conf
+            readOnly: true
+          - name: lwd-data
+            mountPath: /var/lib/lightwalletd
+{{- if .TLSEnabled}}
+          - name: lwd-cert
+            mountPath: /etc/lightwalletd/cert
+{{- end}}
+      - name: envoy
+        image: {{.Envoy.Image}}
+        command: {{.Envoy.Command}}
+        ports:
+          - name: lwd-grpc-proxy
+            containerPort: {{.Envoy.Port}}
+            protocol: TCP
+        volumeMounts:
+          - name: envoy-proxy-conf
+            mountPath: "/etc/envoy"
+            readOnly: true
+{{end}}
+
+{{define "SERVICE"}}
+apiVersion: v1
+kind: Service
+metadata:
+  name: lwd-svc-{{.Name}}
+  namespace: {{.Namespace}}
+  labels:
+    {{- range $key, $value := .Labels}}
+    {{$key}}: {{$value}}
+    {{- end}}
+  annotations:
+    projectcontour.io/upstream-protocol.h2c: "https,443"
+spec:
+  selector:
+    {{- range $key, $value := .Labels}}
+    {{$key}}: {{$value}}
+    {{- end}}
+    app: lwd
+  ports:
+    - name: lwd-grpc
+      port: {{.Ports.GRPC}}
+      targetPort: {{.Ports.GRPC}}
+    - name: lwd-http
+      port: {{.Ports.HTTP}}
+      targetPort: {{.Ports.HTTP}}
+    - name: lwd-grpc-proxy
+      port: {{.Envoy.Port}}
+      targetPort: {{.Envoy.Port}}
+{{end}}
+
+{{define "INGRESS"}}
+apiVersion: projectcontour.io/v1
+kind: HTTPProxy
+metadata:
+  name: ingress-{{.Name}}
+  namespace: {{.Namespace}}
+  labels:
+    {{- range $key, $value := .Labels}}
+    {{$key}}: {{$value}}
+    {{- end}}
+spec:
+  virtualhost:
+    fqdn: {{.Namespace}}-{{.Name}}.{{.DomainName}}
+    tls:
+      secretName: {{.DomainSecret}}
+#{{- if .Envoy.AccessAuthorization}}
+#    authorization:
+#      extensionRef:
+#        name: authz-svc
+#{{- end}}
+  routes:
+  - services:
+    - name: lwd-svc-{{.Name}}
+      port: {{.Envoy.Port}}
+      protocol: h2c
+{{end}}
+
+{{define "INGRESS_STOPPED"}}
+apiVersion: projectcontour.io/v1
+kind: HTTPProxy
+metadata:
+  name: ingress-{{.Name}}
+  namespace: {{.Namespace}}
+  labels:
+    {{- range $key, $value := .Labels}}
+    {{$key}}: {{$value}}
+    {{- end}}
+spec:
+  virtualhost:
+    fqdn: {{.Namespace}}-{{.Name}}.{{.DomainName}}
+    tls:
+      secretName: {{.DomainSecret}}
+#{{- if .Envoy.AccessAuthorization}}
+#    authorization:
+#      extensionRef:
+#        name: authz-svc
+#{{- end}}
+  routes:
+  - services:
+    - name: project-svc
+      port: 50051
+      protocol: h2c
+{{end}}

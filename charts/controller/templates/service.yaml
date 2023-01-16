@@ -1,0 +1,19 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ include "zbi.fullname" . }}-svc
+  labels:
+    {{- include "zbi.labels" . | nindent 4 }}
+    app.zbi.instance: controller
+spec:
+  type: {{ .Values.service.type }}
+  selector:
+    {{- include "zbi.labels" . | nindent 4 }}
+    app.zbi.instance: controller
+  ports:
+    - name: http-svc
+      port: {{ .Values.service.controllerPort }}
+      targetPort: {{ .Values.service.controllerPort }}
+    - name: grpc-svc
+      port: {{ .Values.service.authzPort }}
+      targetPort: {{ .Values.service.authzPort }}
