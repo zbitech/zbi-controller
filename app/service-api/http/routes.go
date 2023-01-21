@@ -29,6 +29,7 @@ func SetupRoutes(ctx context.Context, server *server.HttpServer) {
 	project := router.PathPrefix("/projects").Subrouter()
 	project.Handle("", middleware.Chain(GetProjects)).Methods(http.MethodGet)
 	project.Handle("", middleware.Chain(CreateProject)).Methods(http.MethodPost)
+	project.Handle("/{project}", middleware.Chain(GetProject)).Methods(http.MethodGet)
 	project.Handle("/{project}", middleware.Chain(DeleteProject)).Methods(http.MethodDelete)
 	project.Handle("/{project}", middleware.Chain(UpdateProject)).Methods(http.MethodPut)   // update
 	project.Handle("/{project}", middleware.Chain(RepairProject)).Methods(http.MethodPatch) // repair
@@ -41,6 +42,7 @@ func SetupRoutes(ctx context.Context, server *server.HttpServer) {
 	instances := project.PathPrefix("/{project}/instances").Subrouter()
 	instances.Handle("", middleware.Chain(CreateInstance)).Methods(http.MethodPost)
 	instances.Handle("", middleware.Chain(GetInstances)).Methods(http.MethodGet)
+	instances.Handle("/{instance}", middleware.Chain(GetInstance)).Methods(http.MethodGet)
 	instances.Handle("/{instance}", middleware.Chain(UpdateInstance)).Methods(http.MethodPut)
 	instances.Handle("/{instance}", middleware.Chain(DeleteInstance)).Methods(http.MethodDelete)
 

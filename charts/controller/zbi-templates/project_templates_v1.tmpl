@@ -10,6 +10,21 @@ metadata:
     {{$key}}: {{$value}}
     {{- end}}
 {{end}}
+  
+{{define "INSTANCE_LIST"}}
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: instances
+  namespace: {{.Namespace}}
+  labels:
+    {{- range $key, $value := .Labels}}
+    {{$key}}: {{$value}}
+    {{- end}}
+data:
+  instances: |
+    {{.Instances}}
+{{end}}
 
 {{define "DEPLOYMENT"}}
 apiVersion: apps/v1

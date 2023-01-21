@@ -254,6 +254,36 @@ func GetInstances(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
+func GetInstance(w http.ResponseWriter, r *http.Request) {
+	ctx := r.Context()
+	log := logger.GetLogger(ctx)
+
+	projectName := request.GetParameterValue(r, request.PATH_PARAM, "project")
+	instanceName := request.GetParameterValue(r, request.PATH_PARAM, "instance")
+
+	log.Infof("getting instance %s for project %s", instanceName, projectName)
+	zclient := vars.KlientFactory.GetZBIClient()
+
+	project, err := zclient.GetProject(ctx, projectName)
+	if err != nil {
+		log.Errorf("failed to retrieve project %s", projectName)
+		response.ServerErrorResponse(w, r, ctx, err)
+		return
+	}
+
+	instance, err := zclient.GetInstance(ctx, project, instanceName)
+	if err != nil {
+		log.Errorf("failed to retrieve intsance %s in project %s", instanceName, projectName)
+		response.ServerErrorResponse(w, r, ctx, err)
+		return
+	}
+
+	envelope := response.Envelope{"instance": instance}
+	if err = response.JSON(w, http.StatusOK, envelope); err != nil {
+		response.ServerErrorResponse(w, r, ctx, err)
+	}
+}
+
 func GetInstanceResources(w http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()
 	log := logger.GetLogger(ctx)

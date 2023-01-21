@@ -32,17 +32,14 @@ func (p ProjectResourceManager) CreateProjectResource(ctx context.Context, proje
 	fileTemplate := helper.Config.GetProjectTemplate()
 
 	projectSpec := model.ProjectSpec{
-		Name:      project.Name,
-		Network:   project.Network,
-		Owner:     project.Owner,
-		TeamId:    project.TeamId,
-		Namespace: project.Name,
-		Labels:    helper.CreateProjectLabels(project),
+		Name:         project.Name,
+		Network:      project.Network,
+		Owner:        project.Owner,
+		TeamId:       project.TeamId,
+		Namespace:    project.Name,
+		Labels:       helper.CreateProjectLabels(project),
+		InstancesMap: "",
 	}
-
-	//	logger.Debugf(ctx, "Created project spec - %s", utils.MarshalObject(pSpec))
-
-	//	fileTemplate := projResources.GetFileTemplate()
 
 	var templates = []string{"NAMESPACE", "SERVICE"}
 	specArr, err := fileTemplate.ExecuteTemplates(templates, projectSpec)
@@ -66,8 +63,7 @@ func (p ProjectResourceManager) CreateProjectIngressResource(ctx context.Context
 	fileTemplate := helper.Config.GetProjectTemplate()
 
 	projectSpec := model.ProjectSpec{
-		Name: project.Name,
-		//		Version:   project.Version,
+		Name:      project.Name,
 		Network:   project.Network,
 		Owner:     project.Owner,
 		TeamId:    project.TeamId,
@@ -77,7 +73,7 @@ func (p ProjectResourceManager) CreateProjectIngressResource(ctx context.Context
 
 	log.Debugf("Created project spec - %s", utils.MarshalObject(project))
 
-	specObj, err := fileTemplate.ExecuteTemplates([]string{"INGRESS", "INGRESS_INCLUDE"}, projectSpec)
+	specObj, err := fileTemplate.ExecuteTemplates([]string{helper.INGRESS, helper.INGRESS_INCLUDE}, projectSpec)
 	if err != nil {
 		log.WithFields(logrus.Fields{"error": err}).Errorf("Project templates failed")
 		return nil, err
@@ -108,6 +104,7 @@ func (p ProjectResourceManager) CreateProjectIngressResource(ctx context.Context
 		log.Errorf("unable to remove field spec.status")
 	}
 
+	//TODO - add logic to update ingress if existing
 	var includes []model.IngressInclude
 	includeData := helper.GetResourceField(appIngress, "spec.includes")
 	if includeData == nil {
@@ -146,13 +143,47 @@ func (p ProjectResourceManager) CreateProjectIngressResource(ctx context.Context
 	return []unstructured.Unstructured{appIng, objIng}, nil
 }
 
-func (p ProjectResourceManager) CreateInstanceResource(ctx context.Context, projIngress *unstructured.Unstructured, project *model.Project, instance *model.Instance, request *model.ResourceRequest, peers ...model.Instance) ([][]unstructured.Unstructured, error) {
+func (p ProjectResourceManager) CreateInstanceResource(ctx context.Context, projIngress *unstructured.Unstructured, project *model.Project, instance *model.Instance, request *model.ResourceRequest, peers ...model.Instance) ([]unstructured.Unstructured, [][]unstructured.Unstructured, error) {
+
+	var log = logger.GetServiceLogger(ctx, "project.CreateInstanceResource")
+	defer func() { logger.LogServiceTime(log) }()
+
 	instanceManager, ok := p.instances[instance.InstanceType]
 	if !ok {
-		return nil, errors.New("resource retrieval error")
+		return nil, nil, errors.New("resource retrieval error")
 	}
 
-	return instanceManager.CreateInstanceResource(ctx, projIngress, project, instance, request, peers...)
+	project.Instances = append(project.Instances, model.Instance{
+		Name:         instance.Name,
+		InstanceType: instance.InstanceType,
+		Request:      instance.Request,
+	})
+
+	fileTemplate := helper.Config.GetProjectTemplate()
+	projectSpec := model.ProjectSpec{
+		Namespace:    project.Name,
+		InstancesMap: utils.MarshalObject(project.Instances),
+		Labels:       helper.CreateProjectLabels(project),
+	}
+
+	specArr, err := fileTemplate.ExecuteTemplates([]string{helper.INSTANCE_LIST}, projectSpec)
+	if err != nil {
+		log.WithFields(logrus.Fields{"error": err}).Errorf("Project templates failed")
+		return nil, nil, err
+	}
+
+	presources, err := helper.CreateYAMLObjects(specArr)
+	if err != nil {
+		log.WithFields(logrus.Fields{"error": err}).Errorf("failed to create instance list template")
+		return nil, nil, err
+	}
+
+	iresources, err := instanceManager.CreateInstanceResource(ctx, projIngress, project, instance, request, peers...)
+	if err != nil {
+		return nil, nil, err
+	}
+
+	return presources, iresources, nil
 }
 
 func (p ProjectResourceManager) CreateUpdateResource(ctx context.Context, project *model.Project, instance *model.Instance, request *model.ResourceRequest, peers ...model.Instance) ([][]unstructured.Unstructured, error) {
@@ -228,10 +259,49 @@ func (p ProjectResourceManager) CreateRotationResource(ctx context.Context, proj
 }
 
 func (p ProjectResourceManager) CreateDeleteResource(ctx context.Context, projIngress *unstructured.Unstructured, project *model.Project, instance *model.Instance, resources []model.KubernetesResource) ([]model.KubernetesResource, []unstructured.Unstructured, error) {
+
+	var log = logger.GetServiceLogger(ctx, "project.CreateDeleteResource")
+	defer func() { logger.LogServiceTime(log) }()
+
 	instanceManager, ok := p.instances[instance.InstanceType]
 	if !ok {
 		return nil, nil, errors.New("resource retrieval error")
 	}
 
-	return instanceManager.CreateDeleteResource(ctx, projIngress, project, instance, resources)
+	project.Instances = append(project.Instances, *instance)
+	for index, inst := range project.Instances {
+		if inst.Name == instance.Name && inst.InstanceType == instance.InstanceType {
+			log.WithFields(logrus.Fields{"instance": instance.Name}).Infof("removed from project instance list")
+			project.Instances = append(project.Instances[:index], project.Instances[index+1:]...)
+			break
+		}
+	}
+
+	fileTemplate := helper.Config.GetProjectTemplate()
+	projectSpec := model.ProjectSpec{
+		Namespace:    project.Name,
+		InstancesMap: utils.MarshalObject(project.Instances),
+		Labels:       helper.CreateProjectLabels(project),
+	}
+
+	specArr, err := fileTemplate.ExecuteTemplates([]string{helper.INSTANCE_LIST}, projectSpec)
+	if err != nil {
+		log.WithFields(logrus.Fields{"error": err}).Errorf("Project templates failed")
+		return nil, nil, err
+	}
+
+	newResources, err := helper.CreateYAMLObjects(specArr)
+	if err != nil {
+		log.WithFields(logrus.Fields{"error": err}).Errorf("failed to create instance list template")
+	}
+
+	delResources, newiResources, err := instanceManager.CreateDeleteResource(ctx, projIngress, project, instance, resources)
+	if err != nil {
+		log.WithFields(logrus.Fields{"error": err}).Errorf("failed to create resources to delete")
+		return nil, nil, err
+	}
+
+	newResources = append(newResources, newiResources...)
+
+	return delResources, newResources, nil
 }

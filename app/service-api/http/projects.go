@@ -104,12 +104,6 @@ func RepairProject(w http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()
 	log := logger.GetLogger(ctx)
 
-	//action := request.GetParameterValue(r, request.GET_PARAM, "action")
-	//if len(action) == 0 {
-	//	response.BadRequestResponse(w, r, errors.New("action is required"))
-	//	return
-	//}
-
 	var project model.Project
 	if err := request.ReadJSON(w, r, &project); err != nil {
 		response.BadRequestResponse(w, r, err)
@@ -144,6 +138,27 @@ func GetProjects(w http.ResponseWriter, r *http.Request) {
 	}
 
 	envelope := response.Envelope{"projects": projects}
+	if err = response.JSON(w, http.StatusOK, envelope); err != nil {
+		response.ServerErrorResponse(w, r, ctx, err)
+	}
+}
+
+func GetProject(w http.ResponseWriter, r *http.Request) {
+	ctx := r.Context()
+	log := logger.GetLogger(ctx)
+
+	projectName := request.GetParameterValue(r, request.PATH_PARAM, "project")
+
+	log.Infof("getting projects %s", projectName)
+	zclient := vars.KlientFactory.GetZBIClient()
+	project, err := zclient.GetProject(ctx, projectName)
+	if err != nil {
+		log.Errorf("failed to retrieve projects")
+		response.ServerErrorResponse(w, r, ctx, err)
+		return
+	}
+
+	envelope := response.Envelope{"project": project}
 	if err = response.JSON(w, http.StatusOK, envelope); err != nil {
 		response.ServerErrorResponse(w, r, ctx, err)
 	}

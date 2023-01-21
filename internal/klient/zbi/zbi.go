@@ -39,12 +39,25 @@ func (z *ZBIClient) GetProjects(ctx context.Context) ([]model.Project, error) {
 
 	if namespaces != nil {
 		for _, namespace := range namespaces {
+			log.WithFields(logrus.Fields{"namespace": namespace}).Debugf("project details")
+
 			project := model.Project{
-				Name:    namespace.Labels["project"],
-				Network: model.NetworkType(namespace.Labels["network"]),
-				Owner:   namespace.Labels["owner"],
-				TeamId:  namespace.Labels["team"],
+				Name:      namespace.Labels["project"],
+				Network:   model.NetworkType(namespace.Labels["network"]),
+				Owner:     namespace.Labels["owner"],
+				TeamId:    namespace.Labels["team"],
+				Instances: make([]model.Instance, 0),
 			}
+
+			cm, err := z.client.GetConfigMapByName(ctx, project.GetNamespace(), "instances")
+			if err != nil {
+				log.WithFields(logrus.Fields{"error": err}).Errorf("failed to retrieve instances")
+			} else {
+				if err = utils.UnMarshalObject(cm.Data["instances"], &(project.Instances)); err != nil {
+					log.WithFields(logrus.Fields{"error": err}).Errorf("failed to retrieve instances")
+				}
+			}
+
 			projects = append(projects, project)
 		}
 	}
@@ -62,16 +75,23 @@ func (z *ZBIClient) GetProject(ctx context.Context, project string) (*model.Proj
 		return nil, err
 	}
 
+	log.WithFields(logrus.Fields{"namespace": namespace}).Debugf("project details")
+
 	var proj = &model.Project{
 		Name:      namespace.Labels["project"],
 		Network:   model.NetworkType(namespace.Labels["network"]),
 		Owner:     namespace.Labels["owner"],
 		TeamId:    namespace.Labels["team"],
-		Instances: make([]map[string]string, 0),
+		Instances: make([]model.Instance, 0),
 	}
 
-	if err = utils.UnMarshalObject(namespace.Annotations["instances"], &(proj.Instances)); err != nil {
+	cm, err := z.client.GetConfigMapByName(ctx, project, "instances")
+	if err != nil {
 		log.WithFields(logrus.Fields{"error": err}).Errorf("failed to retrieve instances")
+	} else {
+		if err = utils.UnMarshalObject(cm.Data["instances"], &(proj.Instances)); err != nil {
+			log.WithFields(logrus.Fields{"error": err}).Errorf("failed to retrieve instances")
+		}
 	}
 
 	return proj, nil
@@ -121,8 +141,39 @@ func (z *ZBIClient) RepairProject(ctx context.Context, project *model.Project) e
 	var log = logger.GetServiceLogger(ctx, "zbi.RepairProject")
 	defer func() { logger.LogServiceTime(log) }()
 
-	//TODO implement me
-	panic("implement me")
+	rscMgr := vars.ManagerFactory.GetProjectDataManager(ctx)
+
+	objects, err := rscMgr.CreateProjectResource(ctx, project)
+	if err != nil {
+		log.Errorf("project kubernetes resource generation failed - %s", err)
+		return err
+	}
+
+	resources, err := z.client.ApplyResources(ctx, objects)
+	if err != nil {
+		log.Errorf("project kubernetes resource creation failed - %s", err)
+		return err
+	}
+
+	log.Infof("created %d resources for project %s", len(resources), project.Name)
+
+	appIngress, _ := z.client.GetIngress(ctx, "zbi", "zbi-proxy")
+	objects, err = rscMgr.CreateProjectIngressResource(ctx, appIngress, project, "add")
+	if err != nil {
+		log.Errorf("project ingress object creation failed - %s", err)
+		return err
+	} else {
+		resources, err = z.client.ApplyResources(ctx, objects)
+		if err != nil {
+			log.Errorf("Project ingress resource creation failed - %s", err)
+			return err
+		}
+	}
+
+	project.Resources = make([]model.KubernetesResource, 0)
+	project.AddResources(resources...)
+
+	return nil
 }
 
 func (z *ZBIClient) DeleteProject(ctx context.Context, project *model.Project, instances []model.Instance) error {
@@ -277,7 +328,7 @@ func (z *ZBIClient) CreateInstance(ctx context.Context, project *model.Project, 
 		return err
 	}
 
-	objects, err := dataMgr.CreateInstanceResource(ctx, projectIngress, project, instance, request, peers...)
+	presources, objects, err := dataMgr.CreateInstanceResource(ctx, projectIngress, project, instance, request, peers...)
 	if err != nil {
 		log.Errorf("instance kubernetes resource generation failed - %s", err)
 		return err
@@ -304,6 +355,12 @@ func (z *ZBIClient) CreateInstance(ctx context.Context, project *model.Project, 
 		log.Infof("no peer update needed")
 	}
 
+	_, err = z.client.ApplyResources(ctx, presources)
+	if err != nil {
+		log.WithFields(logrus.Fields{"error": err}).Errorf("project kubernetes resource creation failed")
+		return err
+	}
+
 	return nil
 }
 
@@ -313,9 +370,8 @@ func (z *ZBIClient) GetAllInstances(ctx context.Context, project *model.Project)
 	defer logger.LogServiceTime(log)
 
 	instances := make([]model.Instance, 0)
-	for _, iMap := range project.Instances {
-		iname := iMap["name"]
-		instance, err := z.GetInstance(ctx, project, iname)
+	for _, inst := range project.Instances {
+		instance, err := z.GetInstance(ctx, project, inst.Name)
 		if err != nil {
 
 		} else {
@@ -323,100 +379,6 @@ func (z *ZBIClient) GetAllInstances(ctx context.Context, project *model.Project)
 		}
 
 	}
-
-	//cmaps, _ := z.client.GetConfigMaps(ctx, project, labels)
-	//if cmaps != nil {
-	//	for _, object := range cmaps {
-	//		instance, exists, instanceMap = helper.GetInstance(instanceMap, object.Labels)
-	//		if exists {
-	//			instance.Resources = append(instance.Resources, *helper.CreateCoreResource(ctx, model.ResourceConfigMap, &object, z.client))
-	//			instanceMap[instance.Name] = *instance
-	//		}
-	//	}
-	//}
-
-	//secrets, _ := z.client.GetSecrets(ctx, project, labels)
-	//if secrets != nil {
-	//	for _, object := range secrets {
-	//		instance, exists, instanceMap = helper.GetInstance(instanceMap, object.Labels)
-	//		if exists {
-	//			instance.Resources = append(instance.Resources, *helper.CreateCoreResource(ctx, model.ResourceSecret, &object, z.client))
-	//			instanceMap[instance.Name] = *instance
-	//		}
-	//	}
-	//}
-
-	//pvcs, _ := z.client.GetPersistentVolumeClaims(ctx, project, labels)
-	//if pvcs != nil {
-	//	for _, object := range pvcs {
-	//		instance, exists, instanceMap = helper.GetInstance(instanceMap, object.Labels)
-	//		if exists {
-	//			instance.Resources = append(instance.Resources, *helper.CreateCoreResource(ctx, model.ResourcePersistentVolumeClaim, &object, z.client))
-	//			instanceMap[instance.Name] = *instance
-	//		}
-	//	}
-	//}
-
-	//deps := z.client.GetDeployments(ctx, project, labels)
-	//if deps != nil {
-	//	for _, object := range deps {
-	//
-	//		instance, exists, instanceMap = helper.GetInstance(instanceMap, object.Labels)
-	//		if exists {
-	//			deployment := helper.CreateCoreResource(ctx, model.ResourceDeployment, &object, z.client)
-	//			instance.Resources = append(instance.Resources, *deployment)
-	//			instanceMap[instance.Name] = *instance
-	//		}
-	//	}
-	//}
-
-	//svcs, _ := z.client.GetServices(ctx, project, labels)
-	//if svcs != nil {
-	//	for _, object := range svcs {
-	//		instance, exists, instanceMap = helper.GetInstance(instanceMap, object.Labels)
-	//		if exists {
-	//			instance.Resources = append(instance.Resources, *helper.CreateCoreResource(ctx, model.ResourceService, &object, z.client))
-	//			instanceMap[instance.Name] = *instance
-	//		}
-	//	}
-	//}
-
-	//vs := z.client.GetVolumeSnapshots(ctx, project, labels)
-	//if vs != nil {
-	//	for _, object := range vs {
-	//		instance, exists, instanceMap = helper.GetInstance(instanceMap, helper.GetResourceLabels(&object))
-	//		if exists {
-	//			instance.Resources = append(instance.Resources, *helper.CreateCoreResource(ctx, model.ResourceVolumeSnapshot, &object, z.client))
-	//			instanceMap[instance.Name] = *instance
-	//		}
-	//	}
-	//}
-
-	//schs := z.client.GetSnapshotSchedules(ctx, project, labels)
-	//if schs != nil {
-	//	for _, object := range schs {
-	//		instance, exists, instanceMap = helper.GetInstance(instanceMap, helper.GetResourceLabels(&object))
-	//		if exists {
-	//			instance.Resources = append(instance.Resources, *helper.CreateCoreResource(ctx, model.ResourceSnapshotSchedule, &object, z.client))
-	//			instanceMap[instance.Name] = *instance
-	//		}
-	//	}
-	//}
-
-	//ingresses := z.client.GetIngresses(ctx, project, labels)
-	//if ingresses != nil {
-	//	for _, object := range ingresses {
-	//		instance, exists, instanceMap = helper.GetInstance(instanceMap, helper.GetResourceLabels(&object))
-	//		if exists {
-	//			instance.Resources = append(instance.Resources, *helper.CreateCoreResource(ctx, model.ResourceHTTPProxy, &object, z.client))
-	//			instanceMap[instance.Name] = *instance
-	//		}
-	//	}
-	//}
-
-	//for _, instance := range instanceMap {
-	//	instances = append(instances, instance)
-	//}
 
 	return instances, nil
 }
@@ -703,13 +665,17 @@ func (z *ZBIClient) DeleteInstance(ctx context.Context, project *model.Project, 
 
 	resources, newResources, err := vars.ManagerFactory.GetProjectDataManager(ctx).CreateDeleteResource(ctx, projIngress, project, instance, instance.GetResources())
 
+	log.Infof("apply new instance resources for deleted instance")
+
+	log.Infof("removing instance resources")
+	resources, err = z.client.DeleteResources(ctx, resources)
+	instance.AddResources(resources...)
+
 	_, err = z.client.ApplyResources(ctx, newResources)
 	if err != nil {
 		log.WithFields(logrus.Fields{"error": err}).Errorf("failed to create new resources")
 	}
 
-	resources, err = z.client.DeleteResources(ctx, resources)
-	instance.AddResources(resources...)
 	return err
 }
 

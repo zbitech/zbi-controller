@@ -21,7 +21,7 @@ type AppResourceManagerIF interface {
 type ProjectResourceManagerIF interface {
 	CreateProjectResource(ctx context.Context, project *model.Project) ([]unstructured.Unstructured, error)
 	CreateProjectIngressResource(ctx context.Context, appIngress *unstructured.Unstructured, project *model.Project, action model.EventAction) ([]unstructured.Unstructured, error)
-	CreateInstanceResource(ctx context.Context, projIngress *unstructured.Unstructured, project *model.Project, instance *model.Instance, request *model.ResourceRequest, peers ...model.Instance) ([][]unstructured.Unstructured, error)
+	CreateInstanceResource(ctx context.Context, projIngress *unstructured.Unstructured, project *model.Project, instance *model.Instance, request *model.ResourceRequest, peers ...model.Instance) ([]unstructured.Unstructured, [][]unstructured.Unstructured, error)
 	CreateUpdateResource(ctx context.Context, project *model.Project, instance *model.Instance, request *model.ResourceRequest, peers ...model.Instance) ([][]unstructured.Unstructured, error)
 	CreateStartResource(ctx context.Context, projIngress *unstructured.Unstructured, project *model.Project, instance *model.Instance) ([]unstructured.Unstructured, error)
 	CreateStopResource(ctx context.Context, projIngress *unstructured.Unstructured, project *model.Project, instance *model.Instance) ([]model.KubernetesResource, []unstructured.Unstructured, error)

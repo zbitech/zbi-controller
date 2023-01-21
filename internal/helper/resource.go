@@ -41,6 +41,7 @@ var (
 	VOLUME          = "VOLUME"
 	SNAPSHOT        = "SNAPSHOT"
 	VOLUME_SNAPSHOT = "VOLUME_SNAPSHOT"
+	INSTANCE_LIST   = "INSTANCE_LIST"
 )
 
 func newTemplateConfig() *TemplateConfig {

@@ -34,93 +34,21 @@ type SnapshotScheduleRequest struct {
 	Labels           map[string]string
 }
 
-type ProjectSpec struct {
-	Name      string            `json:"name"`
-	Network   NetworkType       `json:"network"`
-	Owner     string            `json:"owner"`
-	TeamId    string            `json:"team"`
-	Namespace string            `json:"namespace"`
-	Instances string            `json:"instances"`
-	Labels    map[string]string `json:"labels"`
-}
-
-type InstanceSpec struct {
-	Name               string                 `json:"name"`
-	Project            string                 `json:"project"`
-	Namespace          string                 `json:"namespace"`
-	ServiceAccountName string                 `json:"serviceAccountName"`
-	DataVolumeName     string                 `json:"dataVolumeName"`
-	DomainName         string                 `json:"domainName"`
-	DomainSecret       string                 `json:"domainSecret"`
-	Labels             map[string]string      `json:"labels"`
-	Envoy              EnvoySpec              `json:"envoy"`
-	Images             map[string]string      `json:"images"`
-	Ports              map[string]int32       `json:"ports"`
-	Properties         map[string]interface{} `json:"properties"`
-	//	Version            string         `json:"version"`
-	//VolumeType     VolumeType         `json:"dataVolumeType"`
-	//VolumeSourceType     VolumeSourceType         `json:"dataSourceType"`
-	//VolumeSourceName         string                 `json:"dataSource"`
-}
-
-type VolumeSpec struct {
-	VolumeName     string
-	StorageClass   string
-	Namespace      string
-	VolumeDataType string
-	DataSourceType DataSourceType
-	SourceName     string
-	Size           string
-	Labels         map[string]string
-}
-
-type SnapshotSpec struct {
-	SnapshotName  string
-	Namespace     string
-	Owner         string
-	VolumeName    string
-	Labels        map[string]string
-	SnapshotClass string
-}
-
-type SnapshotScheduleSpec struct {
-	ScheduleName     string
-	Namespace        string
-	Schedule         string
-	ScheduleType     SnapshotScheduleType
-	SnapshotClass    string
-	BackupExpiration string
-	MaxBackupCount   int
-	Labels           map[string]string
-	ClaimLabels      map[string]string
-	SnapshotLabels   map[string]string
-}
-
-type EnvoySpec struct {
-	Image                 string
-	Command               string
-	Port                  int32
-	Timeout               float32
-	AccessAuthorization   bool
-	AuthServerURL         string
-	AuthServerPort        int32
-	AuthenticationEnabled bool
-}
-
 type Project struct {
 	Name      string               `json:"name"`
 	Network   NetworkType          `json:"network"`
 	Owner     string               `json:"owner"`
 	TeamId    string               `json:"team"`
-	Instances []map[string]string  `json:"instances"`
+	Instances []Instance           `json:"instances"`
 	Resources []KubernetesResource `json:"resources,omitempty"`
 }
 
 type Instance struct {
 	Name         string               `json:"name"`
 	InstanceType InstanceType         `json:"instanceType"`
-	Project      string               `json:"project"`
-	Resources    *KubernetesResources `json:"resources"`
+	Project      string               `json:"project,omitempty"`
+	Request      *ResourceRequest     `json:"request"`
+	Resources    *KubernetesResources `json:"resources,omitempty"`
 }
 
 type ResourceRequest struct {
@@ -128,10 +56,10 @@ type ResourceRequest struct {
 	VolumeSize          string                 `json:"volumeSize,omitempty"`
 	VolumeSourceType    DataSourceType         `json:"volumeSourceType,omitempty"`
 	VolumeSourceName    string                 `json:"volumeSourceName,omitempty"`
-	VolumeSourceProject string                 `json:"volumeSourceProject"`
+	VolumeSourceProject string                 `json:"volumeSourceProject,omitempty"`
 	Cpu                 string                 `json:"cpu,omitempty"`
 	Memory              string                 `json:"memory,omitempty"`
-	Peers               []string               `json:"peers"`
+	Peers               []string               `json:"peers,omitempty"`
 	Properties          map[string]interface{} `json:"properties,omitempty"`
 }
 
@@ -150,109 +78,6 @@ type KubernetesResource struct {
 	Updated    *time.Time             `json:"updated,omitempty"`
 	Properties map[string]interface{} `json:"properties,omitempty"`
 }
-
-type ResourceObjectType string
-
-const (
-	ResourceNamespace             ResourceObjectType = "Namespace"
-	ResourceDeployment            ResourceObjectType = "Deployment"
-	ResourceService               ResourceObjectType = "Service"
-	ResourceConfigMap             ResourceObjectType = "ConfigMap"
-	ResourceSecret                ResourceObjectType = "Secret"
-	ResourcePod                   ResourceObjectType = "Pod"
-	ResourcePersistentVolume      ResourceObjectType = "PersistentVolume"
-	ResourcePersistentVolumeClaim ResourceObjectType = "PersistentVolumeClaim"
-	ResourceVolumeSnapshot        ResourceObjectType = "VolumeSnapshot"
-	ResourceVolumeSnapshotClass   ResourceObjectType = "VolumeSnapshotClass"
-	ResourceSnapshotSchedule      ResourceObjectType = "SnapshotSchedule"
-	ResourceHTTPProxy             ResourceObjectType = "HTTPProxy"
-)
-
-type EventAction string
-
-const (
-	EventActionCreate         EventAction = "create"
-	EventActionDelete         EventAction = "delete"
-	EventActionUpdate         EventAction = "update"
-	EventActionResource       EventAction = "resource"
-	EventActionDeactivate     EventAction = "deactivate"
-	EventActionReactivate     EventAction = "reactivate"
-	EventActionRepair         EventAction = "repair"
-	EventActionSnapshot       EventAction = "snapshot"
-	EventActionSchedule       EventAction = "schedule"
-	EventActionPurge          EventAction = "purge"
-	EventActionStopInstance   EventAction = "stop"
-	EventActionStartInstance  EventAction = "start"
-	EventActionRotate         EventAction = "rotate"
-	EventActionUpdatePolicy   EventAction = "updatepolicy"
-	EventActionAddMember      EventAction = "addmember"
-	EventActionRemoveMember   EventAction = "removemember"
-	EventActionUpdateMember   EventAction = "updatemember"
-	EventActionRegister       EventAction = "register"
-	EventActionCreateKey      EventAction = "createkey"
-	EventActionDeleteKey      EventAction = "deletekey"
-	EventActionChangePassword EventAction = "changepassword"
-	EventActionChangeEmail    EventAction = "changeemail"
-	EventActionUpdateProfile  EventAction = "updateprofile"
-	EventActionAcceptInvite   EventAction = "acceptinvite"
-	EventActionRejectInvite   EventAction = "rejectinvite"
-	EventActionExpireInvite   EventAction = "expireinvite"
-)
-
-type NetworkType string
-
-const (
-	NetworkTypeMain NetworkType = "mainnet"
-	NetworkTypeTest NetworkType = "testnet"
-)
-
-type InstanceType string
-
-const (
-	InstanceTypeZCASH InstanceType = "zcash"
-	InstanceTypeLWD   InstanceType = "lwd"
-)
-
-type StatusType string
-
-const (
-	StatusNew         StatusType = "new"
-	StatusActive      StatusType = "active"
-	StatusInActive    StatusType = "inactive"
-	StatusFailed      StatusType = "failed"
-	StatusPending     StatusType = "pending"
-	StatusProgressing StatusType = "progressing"
-	StatusBound       StatusType = "bound"
-	StatusRunning     StatusType = "running"
-	StatusStopped     StatusType = "stopped"
-	StatusValid       StatusType = "valid"
-	StatusReady       StatusType = "ready"
-)
-
-type SnapshotScheduleType string
-
-const (
-	HourlySnapshotScheduled SnapshotScheduleType = "hourly"
-	DailySnapshotSchedule   SnapshotScheduleType = "daily"
-	WeeklySnapshotSchedule  SnapshotScheduleType = "weekly"
-	MonthlySnapshotSchedule SnapshotScheduleType = "monthly"
-)
-
-type DataSourceType string
-
-const (
-	NoDataSource       DataSourceType = "none"
-	NewDataSource      DataSourceType = "new"
-	VolumeDataSource   DataSourceType = "pvc"
-	SnapshotDataSource DataSourceType = "snapshot"
-)
-
-type DataVolumeType string
-
-const (
-	EphemeralDataVolume  DataVolumeType = "eph"
-	PersistentDataVolume DataVolumeType = "pvc"
-)
 
 type Metadata struct {
 	Name              string            `json:"name"`
@@ -326,171 +151,4 @@ type Ingress struct {
 			} `json:"ingress,omitempty"`
 		} `json:"loadBalancer,omitempty"`
 	} `json:"status,omitempty"`
-}
-
-func (project *Project) GetInstanceType(name string) InstanceType {
-	for _, entry := range project.Instances {
-		if entry["name"] == name {
-			return InstanceType(entry["type"])
-		}
-	}
-
-	return ""
-}
-
-func appendResource(resources []KubernetesResource, newResource KubernetesResource) []KubernetesResource {
-
-	for index := 0; index < len(resources); index++ {
-		if resources[index].Name == newResource.Name && resources[index].Type == newResource.Type {
-			resources[index].Properties = newResource.Properties
-			resources[index].Updated = newResource.Updated
-			resources[index].Status = newResource.Status
-			return resources
-		}
-	}
-
-	return append(resources, newResource)
-}
-
-func (instance *Instance) GetResource(resourceName string, resourceType ResourceObjectType) *KubernetesResource {
-
-	var resources []KubernetesResource
-	if resourceType == ResourceVolumeSnapshot {
-		resources = instance.Resources.Snapshots
-	} else if resourceType == ResourceSnapshotSchedule {
-		resources = instance.Resources.Schedules
-	} else {
-		resources = instance.Resources.Resources
-	}
-
-	for _, resource := range resources {
-		if resource.Name == resourceName && resource.Type == resourceType {
-			return &resource
-		}
-	}
-
-	return nil
-}
-
-func (instance *Instance) GetResourceByName(resourceName string) *KubernetesResource {
-
-	for _, resource := range instance.Resources.Resources {
-		if resource.Name == resourceName {
-			return &resource
-		}
-	}
-
-	for _, resource := range instance.Resources.Snapshots {
-		if resource.Name == resourceName {
-			return &resource
-		}
-	}
-
-	for _, resource := range instance.Resources.Schedules {
-		if resource.Name == resourceName {
-			return &resource
-		}
-	}
-
-	return nil
-}
-
-func (instance *Instance) GetResourceByType(resourceType ResourceObjectType) *KubernetesResource {
-
-	var resources []KubernetesResource
-	if resourceType == ResourceVolumeSnapshot {
-		resources = instance.Resources.Snapshots
-	} else if resourceType == ResourceSnapshotSchedule {
-		resources = instance.Resources.Schedules
-	} else {
-		resources = instance.Resources.Resources
-	}
-
-	for _, resource := range resources {
-		if resource.Type == resourceType {
-			return &resource
-		}
-	}
-
-	return nil
-}
-
-func (instance *Instance) AddResource(resource KubernetesResource) {
-
-	if resource.Type == ResourceVolumeSnapshot {
-		instance.Resources.Snapshots = append(instance.Resources.Snapshots, resource)
-	} else if resource.Type == ResourceSnapshotSchedule {
-		instance.Resources.Schedules = append(instance.Resources.Schedules, resource)
-	} else {
-		instance.Resources.Resources = append(instance.Resources.Resources, resource)
-	}
-}
-
-func (instance *Instance) AddResources(resources ...KubernetesResource) {
-	for _, resource := range resources {
-		instance.AddResource(resource)
-	}
-}
-
-func (instance *Instance) HasResources() bool {
-	return len(instance.Resources.Resources) > 0 ||
-		len(instance.Resources.Snapshots) > 0 ||
-		len(instance.Resources.Schedules) > 0
-}
-
-func (instance *Instance) GetResources() []KubernetesResource {
-	var resources = make([]KubernetesResource, 0)
-
-	resources = append(resources, instance.Resources.Resources...)
-	resources = append(resources, instance.Resources.Snapshots...)
-	resources = append(resources, instance.Resources.Schedules...)
-
-	return resources
-}
-
-func (project *Project) GetNamespace() string {
-	return project.Name
-}
-
-func (project *Project) GetResource(resourceName string, resourceType ResourceObjectType) *KubernetesResource {
-	for _, resource := range project.Resources {
-		if resource.Name == resourceName && resource.Type == resourceType {
-			return &resource
-		}
-	}
-
-	return nil
-}
-
-func (project *Project) GetResourceByName(resourceName string) *KubernetesResource {
-	for _, resource := range project.Resources {
-		if resource.Name == resourceName {
-			return &resource
-		}
-	}
-
-	return nil
-}
-
-func (project *Project) GetResourceByType(resourceType ResourceObjectType) *KubernetesResource {
-	for _, resource := range project.Resources {
-		if resource.Type == resourceType {
-			return &resource
-		}
-	}
-
-	return nil
-}
-
-func (project *Project) AddResource(resource KubernetesResource) {
-	if project.Resources == nil {
-		project.Resources = make([]KubernetesResource, 0)
-	}
-	project.Resources = appendResource(project.Resources, resource)
-}
-
-func (project *Project) AddResources(resources ...KubernetesResource) {
-	for _, resource := range resources {
-		project.AddResource(resource)
-	}
 }

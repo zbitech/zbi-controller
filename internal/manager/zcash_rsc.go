@@ -510,19 +510,7 @@ func (z *ZcashInstanceResourceManager) CreateRepairResource(ctx context.Context,
 			PASSWORD:  password,
 			ZcashConf: conf,
 		},
-		//VolumeType:     instance.VolumeType,
-		//VolumeSourceType:     instance.VolumeSourceType,
-		//VolumeSourceName:         instance.VolumeSourceName,
 	}
-
-	//properties := make([]map[string]interface{}, 5)
-	//
-	//properties[0] = make(map[string]interface{})
-	//properties[0]["conf"] = conf
-	//
-	//properties[2] = make(map[string]interface{})
-	//properties[2]["username"] = instanceSpec.Properties[USERNAME]
-	//properties[2]["password"] = instanceSpec.Properties[PASSWORD]
 
 	specArr, err = fileTemplate.ExecuteTemplates([]string{ZCASH_CONF, ENVOY_CONF, CREDENTIALS, DEPLOYMENT, SERVICE}, instanceSpec)
 
