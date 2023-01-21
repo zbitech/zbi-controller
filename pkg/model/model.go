@@ -40,6 +40,7 @@ type ProjectSpec struct {
 	Owner     string            `json:"owner"`
 	TeamId    string            `json:"team"`
 	Namespace string            `json:"namespace"`
+	Instances string            `json:"instances"`
 	Labels    map[string]string `json:"labels"`
 }
 
@@ -57,9 +58,9 @@ type InstanceSpec struct {
 	Ports              map[string]int32       `json:"ports"`
 	Properties         map[string]interface{} `json:"properties"`
 	//	Version            string         `json:"version"`
-	//DataVolumeType     DataVolumeType         `json:"dataVolumeType"`
-	//DataSourceType     DataSourceType         `json:"dataSourceType"`
-	//DataSource         string                 `json:"dataSource"`
+	//VolumeType     VolumeType         `json:"dataVolumeType"`
+	//VolumeSourceType     VolumeSourceType         `json:"dataSourceType"`
+	//VolumeSourceName         string                 `json:"dataSource"`
 }
 
 type VolumeSpec struct {
@@ -111,6 +112,7 @@ type Project struct {
 	Network   NetworkType          `json:"network"`
 	Owner     string               `json:"owner"`
 	TeamId    string               `json:"team"`
+	Instances []map[string]string  `json:"instances"`
 	Resources []KubernetesResource `json:"resources,omitempty"`
 }
 
@@ -118,27 +120,25 @@ type Instance struct {
 	Name         string               `json:"name"`
 	InstanceType InstanceType         `json:"instanceType"`
 	Project      string               `json:"project"`
-	Resources    []KubernetesResource `json:"resources"`
-	//DataVolumeType DataVolumeType         `json:"dataVolumeType"`
-	//DataVolumeSize string                 `json:"dataVolumeSize"`
-	//DataSourceType DataSourceType         `json:"dataSourceType"`
-	//DataSource     string                 `json:"dataSource"`
-	//Properties map[string]interface{} `json:"properties"`
-	//  Version        string                 `json:"version"`
-	//	Namespace      string                 `json:"namespace"`
-	//	Network        NetworkType            `json:"network"`
-	//	Owner          string                 `json:"owner"`
-	//	TeamId         string                 `json:"team"`
+	Resources    *KubernetesResources `json:"resources"`
 }
 
 type ResourceRequest struct {
-	DataVolumeType DataVolumeType         `json:"dataVolumeType,omitempty"`
-	DataVolumeSize string                 `json:"dataVolumeSize,omitempty"`
-	DataSourceType DataSourceType         `json:"dataSourceType,omitempty"`
-	DataSource     string                 `json:"dataSource,omitempty"`
-	Cpu            string                 `json:"cpu,omitempty"`
-	Memory         string                 `json:"memory,omitempty"`
-	Properties     map[string]interface{} `json:"properties,omitempty"`
+	VolumeType          DataVolumeType         `json:"volumeType,omitempty"`
+	VolumeSize          string                 `json:"volumeSize,omitempty"`
+	VolumeSourceType    DataSourceType         `json:"volumeSourceType,omitempty"`
+	VolumeSourceName    string                 `json:"volumeSourceName,omitempty"`
+	VolumeSourceProject string                 `json:"volumeSourceProject"`
+	Cpu                 string                 `json:"cpu,omitempty"`
+	Memory              string                 `json:"memory,omitempty"`
+	Peers               []string               `json:"peers"`
+	Properties          map[string]interface{} `json:"properties,omitempty"`
+}
+
+type KubernetesResources struct {
+	Resources []KubernetesResource `json:"resources"`
+	Snapshots []KubernetesResource `json:"snapshots"`
+	Schedules []KubernetesResource `json:"schedule"`
 }
 
 type KubernetesResource struct {
@@ -328,6 +328,16 @@ type Ingress struct {
 	} `json:"status,omitempty"`
 }
 
+func (project *Project) GetInstanceType(name string) InstanceType {
+	for _, entry := range project.Instances {
+		if entry["name"] == name {
+			return InstanceType(entry["type"])
+		}
+	}
+
+	return ""
+}
+
 func appendResource(resources []KubernetesResource, newResource KubernetesResource) []KubernetesResource {
 
 	for index := 0; index < len(resources); index++ {
@@ -343,7 +353,17 @@ func appendResource(resources []KubernetesResource, newResource KubernetesResour
 }
 
 func (instance *Instance) GetResource(resourceName string, resourceType ResourceObjectType) *KubernetesResource {
-	for _, resource := range instance.Resources {
+
+	var resources []KubernetesResource
+	if resourceType == ResourceVolumeSnapshot {
+		resources = instance.Resources.Snapshots
+	} else if resourceType == ResourceSnapshotSchedule {
+		resources = instance.Resources.Schedules
+	} else {
+		resources = instance.Resources.Resources
+	}
+
+	for _, resource := range resources {
 		if resource.Name == resourceName && resource.Type == resourceType {
 			return &resource
 		}
@@ -353,7 +373,20 @@ func (instance *Instance) GetResource(resourceName string, resourceType Resource
 }
 
 func (instance *Instance) GetResourceByName(resourceName string) *KubernetesResource {
-	for _, resource := range instance.Resources {
+
+	for _, resource := range instance.Resources.Resources {
+		if resource.Name == resourceName {
+			return &resource
+		}
+	}
+
+	for _, resource := range instance.Resources.Snapshots {
+		if resource.Name == resourceName {
+			return &resource
+		}
+	}
+
+	for _, resource := range instance.Resources.Schedules {
 		if resource.Name == resourceName {
 			return &resource
 		}
@@ -363,7 +396,17 @@ func (instance *Instance) GetResourceByName(resourceName string) *KubernetesReso
 }
 
 func (instance *Instance) GetResourceByType(resourceType ResourceObjectType) *KubernetesResource {
-	for _, resource := range instance.Resources {
+
+	var resources []KubernetesResource
+	if resourceType == ResourceVolumeSnapshot {
+		resources = instance.Resources.Snapshots
+	} else if resourceType == ResourceSnapshotSchedule {
+		resources = instance.Resources.Schedules
+	} else {
+		resources = instance.Resources.Resources
+	}
+
+	for _, resource := range resources {
 		if resource.Type == resourceType {
 			return &resource
 		}
@@ -373,16 +416,36 @@ func (instance *Instance) GetResourceByType(resourceType ResourceObjectType) *Ku
 }
 
 func (instance *Instance) AddResource(resource KubernetesResource) {
-	if instance.Resources == nil {
-		instance.Resources = make([]KubernetesResource, 0)
+
+	if resource.Type == ResourceVolumeSnapshot {
+		instance.Resources.Snapshots = append(instance.Resources.Snapshots, resource)
+	} else if resource.Type == ResourceSnapshotSchedule {
+		instance.Resources.Schedules = append(instance.Resources.Schedules, resource)
+	} else {
+		instance.Resources.Resources = append(instance.Resources.Resources, resource)
 	}
-	instance.Resources = appendResource(instance.Resources, resource)
 }
 
 func (instance *Instance) AddResources(resources ...KubernetesResource) {
 	for _, resource := range resources {
 		instance.AddResource(resource)
 	}
+}
+
+func (instance *Instance) HasResources() bool {
+	return len(instance.Resources.Resources) > 0 ||
+		len(instance.Resources.Snapshots) > 0 ||
+		len(instance.Resources.Schedules) > 0
+}
+
+func (instance *Instance) GetResources() []KubernetesResource {
+	var resources = make([]KubernetesResource, 0)
+
+	resources = append(resources, instance.Resources.Resources...)
+	resources = append(resources, instance.Resources.Snapshots...)
+	resources = append(resources, instance.Resources.Schedules...)
+
+	return resources
 }
 
 func (project *Project) GetNamespace() string {

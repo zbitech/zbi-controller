@@ -32,9 +32,9 @@ unit_tests:
 
 run:
 #	export ASSET_PATH_DIRECTORY=$(PWD)/../control-plane/zbi/conf
-	export ASSET_PATH_DIRECTORY=$(PWD)/../charts/controller/ && \
-	export ZBI_CONFIG_DIRECTORY=$(PWD)/../charts/controller/zbi-conf/ && \
-	export ZBI_TEMPLATE_DIRECTORY=$(PWD)/../charts/controller/zbi-templates/ && \
+	export ASSET_PATH_DIRECTORY=$(PWD)/charts/controller/ && \
+	export ZBI_CONFIG_DIRECTORY=$(PWD)/charts/controller/zbi-conf/ && \
+	export ZBI_TEMPLATE_DIRECTORY=$(PWD)/charts/controller/zbi-templates/ && \
 	export KUBERNETES_IN_CLUSTER=false && \
 	export KUBECONFIG=$(HOME)/.kube/config && \
 	go run main.go --port 8180

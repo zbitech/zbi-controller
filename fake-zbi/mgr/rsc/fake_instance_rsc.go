@@ -8,12 +8,12 @@ import (
 )
 
 type FakeInstanceResourceManager struct {
-	FakeCreateInstanceResource         func(ctx context.Context, projIngress *unstructured.Unstructured, project *model.Project, instance *model.Instance, request *model.ResourceRequest, peers ...*model.Instance) ([][]unstructured.Unstructured, error)
-	FakeCreateUpdateResource           func(ctx context.Context, project *model.Project, instance *model.Instance, request *model.ResourceRequest, peers ...*model.Instance) ([][]unstructured.Unstructured, error)
+	FakeCreateInstanceResource         func(ctx context.Context, projIngress *unstructured.Unstructured, project *model.Project, instance *model.Instance, request *model.ResourceRequest, peers ...model.Instance) ([][]unstructured.Unstructured, error)
+	FakeCreateUpdateResource           func(ctx context.Context, project *model.Project, instance *model.Instance, request *model.ResourceRequest, peers ...model.Instance) ([][]unstructured.Unstructured, error)
 	FakeCreateIngressResource          func(ctx context.Context, projIngress *unstructured.Unstructured, project *model.Project, instance *model.Instance, action model.EventAction) (*unstructured.Unstructured, error)
 	FakeCreateStartResource            func(ctx context.Context, projIngress *unstructured.Unstructured, project *model.Project, instance *model.Instance) ([]unstructured.Unstructured, error)
 	FakeCreateStopResource             func(ctx context.Context, projIngress *unstructured.Unstructured, project *model.Project, instance *model.Instance) ([]model.KubernetesResource, []unstructured.Unstructured, error)
-	FakeCreateRepairResource           func(ctx context.Context, projIngress *unstructured.Unstructured, project *model.Project, instance *model.Instance, peers ...*model.Instance) ([]unstructured.Unstructured, error)
+	FakeCreateRepairResource           func(ctx context.Context, projIngress *unstructured.Unstructured, project *model.Project, instance *model.Instance, peers ...model.Instance) ([]unstructured.Unstructured, error)
 	FakeCreateSnapshotResource         func(ctx context.Context, project *model.Project, instance *model.Instance) ([]unstructured.Unstructured, error)
 	FakeCreateSnapshotScheduleResource func(ctx context.Context, project *model.Project, instance *model.Instance, scheduleType model.SnapshotScheduleType) ([]unstructured.Unstructured, error)
 	FakeCreateRotationResource         func(ctx context.Context, project *model.Project, instance *model.Instance) ([]unstructured.Unstructured, error)
@@ -24,11 +24,11 @@ func NewFakeInstanceResourceManager() interfaces.InstanceResourceManagerIF {
 	return &FakeInstanceResourceManager{}
 }
 
-func (f FakeInstanceResourceManager) CreateInstanceResource(ctx context.Context, projIngress *unstructured.Unstructured, project *model.Project, instance *model.Instance, request *model.ResourceRequest, peers ...*model.Instance) ([][]unstructured.Unstructured, error) {
+func (f FakeInstanceResourceManager) CreateInstanceResource(ctx context.Context, projIngress *unstructured.Unstructured, project *model.Project, instance *model.Instance, request *model.ResourceRequest, peers ...model.Instance) ([][]unstructured.Unstructured, error) {
 	return f.FakeCreateInstanceResource(ctx, projIngress, project, instance, request, peers...)
 }
 
-func (f FakeInstanceResourceManager) CreateUpdateResource(ctx context.Context, project *model.Project, instance *model.Instance, request *model.ResourceRequest, peers ...*model.Instance) ([][]unstructured.Unstructured, error) {
+func (f FakeInstanceResourceManager) CreateUpdateResource(ctx context.Context, project *model.Project, instance *model.Instance, request *model.ResourceRequest, peers ...model.Instance) ([][]unstructured.Unstructured, error) {
 	return f.FakeCreateUpdateResource(ctx, project, instance, request, peers...)
 }
 
@@ -44,7 +44,7 @@ func (f FakeInstanceResourceManager) CreateStopResource(ctx context.Context, pro
 	return f.FakeCreateStopResource(ctx, projIngress, project, instance)
 }
 
-func (f FakeInstanceResourceManager) CreateRepairResource(ctx context.Context, projIngress *unstructured.Unstructured, project *model.Project, instance *model.Instance, peers ...*model.Instance) ([]unstructured.Unstructured, error) {
+func (f FakeInstanceResourceManager) CreateRepairResource(ctx context.Context, projIngress *unstructured.Unstructured, project *model.Project, instance *model.Instance, peers ...model.Instance) ([]unstructured.Unstructured, error) {
 	return f.FakeCreateRepairResource(ctx, projIngress, project, instance, peers...)
 }
 

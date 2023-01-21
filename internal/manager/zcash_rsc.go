@@ -35,7 +35,7 @@ func NewZcashInstanceResourceManager() interfaces.InstanceResourceManagerIF {
 	return &ZcashInstanceResourceManager{}
 }
 
-func (z *ZcashInstanceResourceManager) CreateInstanceResource(ctx context.Context, projIngress *unstructured.Unstructured, project *model.Project, instance *model.Instance, request *model.ResourceRequest, peers ...*model.Instance) ([][]unstructured.Unstructured, error) {
+func (z *ZcashInstanceResourceManager) CreateInstanceResource(ctx context.Context, projIngress *unstructured.Unstructured, project *model.Project, instance *model.Instance, request *model.ResourceRequest, peers ...model.Instance) ([][]unstructured.Unstructured, error) {
 
 	var log = logger.GetServiceLogger(ctx, "zcash.CreateInstanceResource")
 	defer func() { logger.LogServiceTime(log) }()
@@ -68,7 +68,7 @@ func (z *ZcashInstanceResourceManager) CreateInstanceResource(ctx context.Contex
 	//conf.SetPort(ic.GetPort("service"))
 
 	dataVolumeName := fmt.Sprintf("%s-%s", instance.Name, utils.GenerateRandomString(5, true))
-	dataVolumeSize := request.DataVolumeSize
+	dataVolumeSize := request.VolumeSize
 
 	username := utils.GenerateRandomString(6, true)
 	password := utils.GenerateSecurePassword()
@@ -118,8 +118,8 @@ func (z *ZcashInstanceResourceManager) CreateInstanceResource(ctx context.Contex
 
 	var volumeSpecs = []model.VolumeSpec{
 		{VolumeName: dataVolumeName, StorageClass: storageClass, Namespace: project.GetNamespace(),
-			VolumeDataType: string(request.DataVolumeType), DataSourceType: request.DataSourceType,
-			SourceName: request.DataSource,
+			VolumeDataType: string(request.VolumeType), DataSourceType: request.VolumeSourceType,
+			SourceName: request.VolumeSourceName,
 			Size:       dataVolumeSize, Labels: instanceSpec.Labels},
 	}
 
@@ -145,8 +145,8 @@ func (z *ZcashInstanceResourceManager) CreateInstanceResource(ctx context.Contex
 	resources = append(resources, objects)
 
 	for index, peer := range peers {
-		instances := make([]*model.Instance, 0)
-		instances = append(instances, instance)
+		instances := make([]model.Instance, 0)
+		instances = append(instances, *instance)
 		if index > 0 {
 			instances = append(instances, peers[:index]...)
 		}
@@ -154,7 +154,7 @@ func (z *ZcashInstanceResourceManager) CreateInstanceResource(ctx context.Contex
 			instances = append(instances, peers[index+1:]...)
 		}
 
-		object, err := z.CreateUpdatePeersResource(ctx, project, peer, instances...)
+		object, err := z.CreateUpdatePeersResource(ctx, project, &peer, instances...)
 		if err != nil {
 			log.WithFields(logrus.Fields{"error": err, "instance": peer}).Error("failed to update ")
 		} else {
@@ -166,7 +166,7 @@ func (z *ZcashInstanceResourceManager) CreateInstanceResource(ctx context.Contex
 	return resources, nil
 }
 
-func (z *ZcashInstanceResourceManager) CreateUpdatePeersResource(ctx context.Context, project *model.Project, instance *model.Instance, peers ...*model.Instance) ([]unstructured.Unstructured, error) {
+func (z *ZcashInstanceResourceManager) CreateUpdatePeersResource(ctx context.Context, project *model.Project, instance *model.Instance, peers ...model.Instance) ([]unstructured.Unstructured, error) {
 
 	var log = logger.GetServiceLogger(ctx, "zcash.CreateUpdatePeersResource")
 	defer func() { logger.LogServiceTime(log) }()
@@ -214,7 +214,7 @@ func (z *ZcashInstanceResourceManager) CreateUpdatePeersResource(ctx context.Con
 	return helper.CreateYAMLObjects(specArr)
 }
 
-func (z *ZcashInstanceResourceManager) CreateUpdateResource(ctx context.Context, project *model.Project, instance *model.Instance, request *model.ResourceRequest, peers ...*model.Instance) ([][]unstructured.Unstructured, error) {
+func (z *ZcashInstanceResourceManager) CreateUpdateResource(ctx context.Context, project *model.Project, instance *model.Instance, request *model.ResourceRequest, peers ...model.Instance) ([][]unstructured.Unstructured, error) {
 
 	var log = logger.GetServiceLogger(ctx, "zcash.CreateUpdateResource")
 	defer func() { logger.LogServiceTime(log) }()
@@ -274,8 +274,8 @@ func (z *ZcashInstanceResourceManager) CreateUpdateResource(ctx context.Context,
 	resources = append(resources, objects)
 
 	for index, peer := range peers {
-		instances := make([]*model.Instance, 0)
-		instances = append(instances, instance)
+		instances := make([]model.Instance, 0)
+		instances = append(instances, *instance)
 		if index > 0 {
 			instances = append(instances, peers[:index]...)
 		}
@@ -283,7 +283,7 @@ func (z *ZcashInstanceResourceManager) CreateUpdateResource(ctx context.Context,
 			instances = append(instances, peers[index+1:]...)
 		}
 
-		object, err := z.CreateUpdatePeersResource(ctx, project, peer, instances...)
+		object, err := z.CreateUpdatePeersResource(ctx, project, &peer, instances...)
 		if err != nil {
 			log.WithFields(logrus.Fields{"error": err, "instance": peer}).Error("failed to update ")
 		} else {
@@ -436,7 +436,7 @@ func (z *ZcashInstanceResourceManager) CreateStopResource(ctx context.Context, p
 	return resources, objects, nil
 }
 
-func (z *ZcashInstanceResourceManager) CreateRepairResource(ctx context.Context, projIngress *unstructured.Unstructured, project *model.Project, instance *model.Instance, peers ...*model.Instance) ([]unstructured.Unstructured, error) {
+func (z *ZcashInstanceResourceManager) CreateRepairResource(ctx context.Context, projIngress *unstructured.Unstructured, project *model.Project, instance *model.Instance, peers ...model.Instance) ([]unstructured.Unstructured, error) {
 
 	var log = logger.GetServiceLogger(ctx, "zcash.CreateRepairResource")
 	defer func() { logger.LogServiceTime(log) }()
@@ -472,10 +472,10 @@ func (z *ZcashInstanceResourceManager) CreateRepairResource(ctx context.Context,
 
 	if pvc != nil && pvc.Status == "active" {
 		dataVolumeName = pvc.Name
-		dataVolumeSize = request.DataVolumeSize
+		dataVolumeSize = request.VolumeSize
 	} else {
 		dataVolumeName = fmt.Sprintf("%s-%s", instance.Name, utils.GenerateRandomString(5, true))
-		dataVolumeSize = request.DataVolumeSize
+		dataVolumeSize = request.VolumeSize
 		pvc.Name = dataVolumeName // re-create in-active volume
 	}
 
@@ -510,9 +510,9 @@ func (z *ZcashInstanceResourceManager) CreateRepairResource(ctx context.Context,
 			PASSWORD:  password,
 			ZcashConf: conf,
 		},
-		//DataVolumeType:     instance.DataVolumeType,
-		//DataSourceType:     instance.DataSourceType,
-		//DataSource:         instance.DataSource,
+		//VolumeType:     instance.VolumeType,
+		//VolumeSourceType:     instance.VolumeSourceType,
+		//VolumeSourceName:         instance.VolumeSourceName,
 	}
 
 	//properties := make([]map[string]interface{}, 5)
@@ -543,8 +543,8 @@ func (z *ZcashInstanceResourceManager) CreateRepairResource(ctx context.Context,
 		storageClass := policy.StorageClass
 		var volumeSpecs = []model.VolumeSpec{
 			{VolumeName: dataVolumeName, StorageClass: storageClass, Namespace: project.GetNamespace(),
-				VolumeDataType: string(request.DataVolumeType), DataSourceType: request.DataSourceType,
-				SourceName: request.DataSource,
+				VolumeDataType: string(request.VolumeType), DataSourceType: request.VolumeSourceType,
+				SourceName: request.VolumeSourceName,
 				Size:       dataVolumeSize, Labels: instanceSpec.Labels},
 		}
 

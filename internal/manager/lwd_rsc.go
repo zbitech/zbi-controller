@@ -21,7 +21,7 @@ func NewLWDInstanceResourceManager() interfaces.InstanceResourceManagerIF {
 	return &LWDInstanceResourceManager{}
 }
 
-func (L *LWDInstanceResourceManager) CreateInstanceResource(ctx context.Context, projIngress *unstructured.Unstructured, project *model.Project, instance *model.Instance, request *model.ResourceRequest, peers ...*model.Instance) ([][]unstructured.Unstructured, error) {
+func (L *LWDInstanceResourceManager) CreateInstanceResource(ctx context.Context, projIngress *unstructured.Unstructured, project *model.Project, instance *model.Instance, request *model.ResourceRequest, peers ...model.Instance) ([][]unstructured.Unstructured, error) {
 
 	var log = logger.GetServiceLogger(ctx, "lwd.CreateInstanceResource")
 	defer func() { logger.LogServiceTime(log) }()
@@ -33,7 +33,7 @@ func (L *LWDInstanceResourceManager) CreateInstanceResource(ctx context.Context,
 	var dataVolumeName, dataVolumeSize string
 
 	dataVolumeName = fmt.Sprintf("%s-%s", instance.Name, utils.GenerateRandomString(5, true))
-	dataVolumeSize = request.DataVolumeSize
+	dataVolumeSize = request.VolumeSize
 
 	policy := helper.Config.GetPolicyConfig()
 	ic, err := helper.Config.GetInstanceConfig(instance.InstanceType)
@@ -74,7 +74,7 @@ func (L *LWDInstanceResourceManager) CreateInstanceResource(ctx context.Context,
 		},
 	}
 
-	addLWDInstance(peers[0], instance.Name, *request)
+	addLWDInstance(&peers[0], instance.Name, *request)
 
 	var specArr []string
 
@@ -95,8 +95,8 @@ func (L *LWDInstanceResourceManager) CreateInstanceResource(ctx context.Context,
 	storageClass := policy.StorageClass
 	var volumeSpecs = []model.VolumeSpec{
 		{VolumeName: dataVolumeName, StorageClass: storageClass, Namespace: project.GetNamespace(),
-			VolumeDataType: string(request.DataVolumeType), DataSourceType: request.DataSourceType,
-			SourceName: request.DataSource,
+			VolumeDataType: string(request.VolumeType), DataSourceType: request.VolumeSourceType,
+			SourceName: request.VolumeSourceName,
 			Size:       dataVolumeSize, Labels: lwdSpec.Labels},
 	}
 
@@ -124,7 +124,7 @@ func (L *LWDInstanceResourceManager) CreateInstanceResource(ctx context.Context,
 	return resources, nil
 }
 
-func (L *LWDInstanceResourceManager) CreateUpdateResource(ctx context.Context, project *model.Project, instance *model.Instance, request *model.ResourceRequest, peers ...*model.Instance) ([][]unstructured.Unstructured, error) {
+func (L *LWDInstanceResourceManager) CreateUpdateResource(ctx context.Context, project *model.Project, instance *model.Instance, request *model.ResourceRequest, peers ...model.Instance) ([][]unstructured.Unstructured, error) {
 
 	var log = logger.GetServiceLogger(ctx, "lwd.CreateUpdateResource")
 	defer func() { logger.LogServiceTime(log) }()
@@ -161,7 +161,7 @@ func (L *LWDInstanceResourceManager) CreateUpdateResource(ctx context.Context, p
 	//lwdInstances := peers[0].Properties["lwdInstance"].([]string)
 	//lwdInstances = append(lwdInstances, instance.Name)
 	//peers[0].Properties["lwdInstance"] = lwdInstances
-	addLWDInstance(peers[0], instance.Name, *request)
+	addLWDInstance(&peers[0], instance.Name, *request)
 
 	specArr, err := fileTemplate.ExecuteTemplates([]string{LWD_CONF, ZCASH_CONF}, instanceSpec)
 	if err != nil {
@@ -355,7 +355,7 @@ func (L *LWDInstanceResourceManager) CreateStopResource(ctx context.Context, pro
 	return resources, objects, nil
 }
 
-func (L *LWDInstanceResourceManager) CreateRepairResource(ctx context.Context, projIngress *unstructured.Unstructured, project *model.Project, instance *model.Instance, peers ...*model.Instance) ([]unstructured.Unstructured, error) {
+func (L *LWDInstanceResourceManager) CreateRepairResource(ctx context.Context, projIngress *unstructured.Unstructured, project *model.Project, instance *model.Instance, peers ...model.Instance) ([]unstructured.Unstructured, error) {
 
 	var log = logger.GetServiceLogger(ctx, "lwd.CreateRepairResource")
 	defer func() { logger.LogServiceTime(log) }()
@@ -374,10 +374,10 @@ func (L *LWDInstanceResourceManager) CreateRepairResource(ctx context.Context, p
 	pvc := instance.GetResourceByType(model.ResourcePersistentVolumeClaim)
 	if pvc != nil && pvc.Status == "active" {
 		dataVolumeName = pvc.Name
-		dataVolumeSize = request.DataVolumeSize
+		dataVolumeSize = request.VolumeSize
 	} else {
 		dataVolumeName = fmt.Sprintf("%s-%s", instance.Name, utils.GenerateRandomString(5, true))
-		dataVolumeSize = request.DataVolumeSize
+		dataVolumeSize = request.VolumeSize
 		pvc.Name = dataVolumeName // create new volume
 	}
 
@@ -420,7 +420,7 @@ func (L *LWDInstanceResourceManager) CreateRepairResource(ctx context.Context, p
 		},
 	}
 
-	addLWDInstance(peers[0], instance.Name, *request)
+	addLWDInstance(&peers[0], instance.Name, *request)
 
 	var specArr []string
 
@@ -442,8 +442,8 @@ func (L *LWDInstanceResourceManager) CreateRepairResource(ctx context.Context, p
 		storageClass := policy.StorageClass
 		var volumeSpecs = []model.VolumeSpec{
 			{VolumeName: dataVolumeName, StorageClass: storageClass, Namespace: project.GetNamespace(),
-				VolumeDataType: string(request.DataVolumeType), DataSourceType: request.DataSourceType,
-				SourceName: request.DataSource,
+				VolumeDataType: string(request.VolumeType), DataSourceType: request.VolumeSourceType,
+				SourceName: request.VolumeSourceName,
 				Size:       dataVolumeSize, Labels: lwdSpec.Labels},
 		}
 

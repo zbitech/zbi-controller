@@ -26,7 +26,6 @@ func CreateInstance(w http.ResponseWriter, r *http.Request) {
 	var input struct {
 		Project  *model.Project         `json:"project"`
 		Instance *model.Instance        `json:"instance"`
-		Peers    []*model.Instance      `json:"peers"`
 		Request  *model.ResourceRequest `json:"request"`
 	}
 
@@ -45,14 +44,14 @@ func CreateInstance(w http.ResponseWriter, r *http.Request) {
 	log.WithFields(logrus.Fields{"instance": input.Instance}).Infof("instance details")
 
 	zclient := vars.KlientFactory.GetZBIClient()
-	err := zclient.CreateInstance(ctx, input.Project, input.Instance, input.Request, input.Peers...)
+	err := zclient.CreateInstance(ctx, input.Project, input.Instance, input.Request)
 	if err != nil {
 		//		service.HandleError(ctx, w, r, err)
 		response.ServerErrorResponse(w, r, ctx, err)
 		return
 	}
 
-	envelope := response.Envelope{"instance": input.Instance, "peers": input.Peers}
+	envelope := response.Envelope{"instance": input.Instance}
 	if err = response.JSON(w, http.StatusCreated, envelope); err != nil {
 		response.ServerErrorResponse(w, r, ctx, err)
 	}
@@ -79,7 +78,7 @@ func DeleteInstance(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	log.WithFields(logrus.Fields{"input": input}).Infof("delete %d resources from %s.%s", len(input.Instance.Resources), projectName, instanceName)
+	//	log.WithFields(logrus.Fields{"input": input}).Infof("delete %d resources from %s.%s", len(input.Instance.Resources), projectName, instanceName)
 	zclient := vars.KlientFactory.GetZBIClient()
 
 	err = zclient.DeleteInstance(ctx, input.Project, input.Instance)
@@ -105,9 +104,9 @@ func UpdateInstance(w http.ResponseWriter, r *http.Request) {
 	log.WithFields(logrus.Fields{"project": projectName, "instance": instanceName}).Infof("updating instance")
 
 	var input struct {
-		Project  *model.Project    `json:"project"`
-		Instance *model.Instance   `json:"instance"`
-		Peers    []*model.Instance `json:"peers"`
+		Project  *model.Project         `json:"project"`
+		Instance *model.Instance        `json:"instance"`
+		Request  *model.ResourceRequest `json:"request"`
 	}
 
 	if err := request.ReadJSON(w, r, &input); err != nil {
@@ -116,17 +115,17 @@ func UpdateInstance(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	log.WithFields(logrus.Fields{"project": input.Project, "instance": input.Instance, "peers": input.Peers}).Infof("updating instance")
+	log.WithFields(logrus.Fields{"project": input.Project, "instance": input.Instance, "request": input.Request}).Infof("updating instance")
 	zclient := vars.KlientFactory.GetZBIClient()
-	err := zclient.UpdateInstance(ctx, input.Project, input.Instance, input.Peers...)
+	err := zclient.UpdateInstance(ctx, input.Project, input.Instance, input.Request)
 	if err != nil {
 		//		service.HandleError(ctx, w, r, err)
 		response.ServerErrorResponse(w, r, ctx, err)
 		return
 	}
 
-	envelope := response.Envelope{"instance": input.Instance, "peers": input.Peers}
-	if err = response.JSON(w, http.StatusOK, envelope); err != nil {
+	// envelope := response.Envelope{"instance": input.Instance}
+	if err = response.JSON(w, http.StatusNoContent, response.Envelope{}); err != nil {
 		response.ServerErrorResponse(w, r, ctx, err)
 	}
 }
@@ -234,7 +233,15 @@ func GetInstances(w http.ResponseWriter, r *http.Request) {
 	projectName := request.GetParameterValue(r, request.PATH_PARAM, "project")
 	log.Infof("getting instances for project %s", projectName)
 	zclient := vars.KlientFactory.GetZBIClient()
-	instances, err := zclient.GetInstances(ctx, projectName)
+
+	project, err := zclient.GetProject(ctx, projectName)
+	if err != nil {
+		log.Errorf("failed to retrieve project %s", projectName)
+		response.ServerErrorResponse(w, r, ctx, err)
+		return
+	}
+
+	instances, err := zclient.GetAllInstances(ctx, project)
 	if err != nil {
 		log.Errorf("failed to retrieve intsances for project %s", projectName)
 		response.ServerErrorResponse(w, r, ctx, err)
@@ -256,7 +263,15 @@ func GetInstanceResources(w http.ResponseWriter, r *http.Request) {
 
 	log.Infof("getting resources for instance %s.%s", projectName, instanceName)
 	zclient := vars.KlientFactory.GetZBIClient()
-	resources, err := zclient.GetInstanceResources(ctx, projectName, instanceName)
+
+	project, err := zclient.GetProject(ctx, projectName)
+	if err != nil {
+		log.Errorf("failed to retrieve project %s", projectName)
+		response.ServerErrorResponse(w, r, ctx, err)
+		return
+	}
+
+	resources, err := zclient.GetInstanceResources(ctx, project, instanceName)
 	if err != nil {
 		log.Errorf("failed to retrieve resources for instance %s.%s", projectName, instanceName)
 		response.ServerErrorResponse(w, r, ctx, err)
@@ -280,7 +295,14 @@ func GetInstanceResource(w http.ResponseWriter, r *http.Request) {
 
 	log.Infof("getting resource %s (%s) instance %s.%s", resourceName, resourceType, projectName, instanceName)
 	zclient := vars.KlientFactory.GetZBIClient()
-	resource, err := zclient.GetInstanceResource(ctx, projectName, instanceName, resourceName, model.ResourceObjectType(resourceType))
+	project, err := zclient.GetProject(ctx, projectName)
+	if err != nil {
+		log.Errorf("failed to retrieve project %s", projectName)
+		response.ServerErrorResponse(w, r, ctx, err)
+		return
+	}
+
+	resource, err := zclient.GetInstanceResource(ctx, project, instanceName, resourceName, model.ResourceObjectType(resourceType))
 	if err != nil {
 		log.Errorf("failed to retrieve resource %s (%s) for instance %s.%s", resourceName, resourceType, projectName, instanceName)
 		response.ServerErrorResponse(w, r, ctx, err)

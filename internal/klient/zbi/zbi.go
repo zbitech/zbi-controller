@@ -5,6 +5,7 @@ import (
 	"github.com/sirupsen/logrus"
 	"github.com/zbitech/controller/internal/helper"
 	client "github.com/zbitech/controller/internal/klient/client"
+	"github.com/zbitech/controller/internal/utils"
 	"github.com/zbitech/controller/internal/vars"
 	"github.com/zbitech/controller/pkg/interfaces"
 	"github.com/zbitech/controller/pkg/logger"
@@ -61,12 +62,19 @@ func (z *ZBIClient) GetProject(ctx context.Context, project string) (*model.Proj
 		return nil, err
 	}
 
-	return &model.Project{
-		Name:    namespace.Labels["project"],
-		Network: model.NetworkType(namespace.Labels["network"]),
-		Owner:   namespace.Labels["owner"],
-		TeamId:  namespace.Labels["team"],
-	}, nil
+	var proj = &model.Project{
+		Name:      namespace.Labels["project"],
+		Network:   model.NetworkType(namespace.Labels["network"]),
+		Owner:     namespace.Labels["owner"],
+		TeamId:    namespace.Labels["team"],
+		Instances: make([]map[string]string, 0),
+	}
+
+	if err = utils.UnMarshalObject(namespace.Annotations["instances"], &(proj.Instances)); err != nil {
+		log.WithFields(logrus.Fields{"error": err}).Errorf("failed to retrieve instances")
+	}
+
+	return proj, nil
 }
 
 // CreateProject creates the resources for a project
@@ -250,12 +258,18 @@ func (z *ZBIClient) GetProjectResource(ctx context.Context, project, resourceNam
 	return resource, nil
 }
 
-func (z *ZBIClient) CreateInstance(ctx context.Context, project *model.Project, instance *model.Instance, request *model.ResourceRequest, peers ...*model.Instance) error {
+func (z *ZBIClient) CreateInstance(ctx context.Context, project *model.Project, instance *model.Instance, request *model.ResourceRequest) error {
 
 	var log = logger.GetServiceLogger(ctx, "zbi.CreateInstance")
 	defer func() { logger.LogServiceTime(log) }()
 
 	dataMgr := vars.ManagerFactory.GetProjectDataManager(ctx)
+
+	peers, err := z.GetInstances(ctx, project, request.Peers)
+	if err != nil {
+		log.WithFields(logrus.Fields{"error": err}).Errorf("failed to get peer instances")
+		return err
+	}
 
 	projectIngress, err := z.client.GetIngress(ctx, project.GetNamespace(), "project-ingress")
 	if err != nil {
@@ -275,7 +289,6 @@ func (z *ZBIClient) CreateInstance(ctx context.Context, project *model.Project, 
 		return err
 	}
 
-	instance.Resources = make([]model.KubernetesResource, 0)
 	instance.AddResources(resources...)
 
 	if peers != nil && len(objects) > 1 {
@@ -294,207 +307,300 @@ func (z *ZBIClient) CreateInstance(ctx context.Context, project *model.Project, 
 	return nil
 }
 
-func (z *ZBIClient) GetInstances(ctx context.Context, project string) ([]model.Instance, error) {
+func (z *ZBIClient) GetAllInstances(ctx context.Context, project *model.Project) ([]model.Instance, error) {
 
 	log := logger.GetServiceLogger(ctx, "zbi.GetInstances")
 	defer logger.LogServiceTime(log)
 
-	labels := map[string]string{"platform": "zbi", "project": project}
+	instances := make([]model.Instance, 0)
+	for _, iMap := range project.Instances {
+		iname := iMap["name"]
+		instance, err := z.GetInstance(ctx, project, iname)
+		if err != nil {
 
-	var instance *model.Instance
-	var exists bool
-	instanceMap := make(map[string]model.Instance)
-
-	cmaps, _ := z.client.GetConfigMaps(ctx, project, labels)
-	if cmaps != nil {
-		for _, object := range cmaps {
-			instance, exists, instanceMap = helper.GetInstance(instanceMap, object.Labels)
-			if exists {
-				instance.Resources = append(instance.Resources, *helper.CreateCoreResource(ctx, model.ResourceConfigMap, &object, z.client))
-				instanceMap[instance.Name] = *instance
-			}
+		} else {
+			instances = append(instances, *instance)
 		}
+
 	}
 
-	secrets, _ := z.client.GetSecrets(ctx, project, labels)
-	if secrets != nil {
-		for _, object := range secrets {
-			instance, exists, instanceMap = helper.GetInstance(instanceMap, object.Labels)
-			if exists {
-				instance.Resources = append(instance.Resources, *helper.CreateCoreResource(ctx, model.ResourceSecret, &object, z.client))
-				instanceMap[instance.Name] = *instance
-			}
-		}
-	}
+	//cmaps, _ := z.client.GetConfigMaps(ctx, project, labels)
+	//if cmaps != nil {
+	//	for _, object := range cmaps {
+	//		instance, exists, instanceMap = helper.GetInstance(instanceMap, object.Labels)
+	//		if exists {
+	//			instance.Resources = append(instance.Resources, *helper.CreateCoreResource(ctx, model.ResourceConfigMap, &object, z.client))
+	//			instanceMap[instance.Name] = *instance
+	//		}
+	//	}
+	//}
 
-	pvcs, _ := z.client.GetPersistentVolumeClaims(ctx, project, labels)
-	if pvcs != nil {
-		for _, object := range pvcs {
-			instance, exists, instanceMap = helper.GetInstance(instanceMap, object.Labels)
-			if exists {
-				instance.Resources = append(instance.Resources, *helper.CreateCoreResource(ctx, model.ResourcePersistentVolumeClaim, &object, z.client))
-				instanceMap[instance.Name] = *instance
-			}
-		}
-	}
+	//secrets, _ := z.client.GetSecrets(ctx, project, labels)
+	//if secrets != nil {
+	//	for _, object := range secrets {
+	//		instance, exists, instanceMap = helper.GetInstance(instanceMap, object.Labels)
+	//		if exists {
+	//			instance.Resources = append(instance.Resources, *helper.CreateCoreResource(ctx, model.ResourceSecret, &object, z.client))
+	//			instanceMap[instance.Name] = *instance
+	//		}
+	//	}
+	//}
 
-	deps := z.client.GetDeployments(ctx, project, labels)
-	if deps != nil {
-		for _, object := range deps {
+	//pvcs, _ := z.client.GetPersistentVolumeClaims(ctx, project, labels)
+	//if pvcs != nil {
+	//	for _, object := range pvcs {
+	//		instance, exists, instanceMap = helper.GetInstance(instanceMap, object.Labels)
+	//		if exists {
+	//			instance.Resources = append(instance.Resources, *helper.CreateCoreResource(ctx, model.ResourcePersistentVolumeClaim, &object, z.client))
+	//			instanceMap[instance.Name] = *instance
+	//		}
+	//	}
+	//}
 
-			instance, exists, instanceMap = helper.GetInstance(instanceMap, object.Labels)
-			if exists {
-				deployment := helper.CreateCoreResource(ctx, model.ResourceDeployment, &object, z.client)
-				instance.Resources = append(instance.Resources, *deployment)
-				instanceMap[instance.Name] = *instance
-			}
-		}
-	}
+	//deps := z.client.GetDeployments(ctx, project, labels)
+	//if deps != nil {
+	//	for _, object := range deps {
+	//
+	//		instance, exists, instanceMap = helper.GetInstance(instanceMap, object.Labels)
+	//		if exists {
+	//			deployment := helper.CreateCoreResource(ctx, model.ResourceDeployment, &object, z.client)
+	//			instance.Resources = append(instance.Resources, *deployment)
+	//			instanceMap[instance.Name] = *instance
+	//		}
+	//	}
+	//}
 
-	svcs, _ := z.client.GetServices(ctx, project, labels)
-	if svcs != nil {
-		for _, object := range svcs {
-			instance, exists, instanceMap = helper.GetInstance(instanceMap, object.Labels)
-			if exists {
-				instance.Resources = append(instance.Resources, *helper.CreateCoreResource(ctx, model.ResourceService, &object, z.client))
-				instanceMap[instance.Name] = *instance
-			}
-		}
-	}
+	//svcs, _ := z.client.GetServices(ctx, project, labels)
+	//if svcs != nil {
+	//	for _, object := range svcs {
+	//		instance, exists, instanceMap = helper.GetInstance(instanceMap, object.Labels)
+	//		if exists {
+	//			instance.Resources = append(instance.Resources, *helper.CreateCoreResource(ctx, model.ResourceService, &object, z.client))
+	//			instanceMap[instance.Name] = *instance
+	//		}
+	//	}
+	//}
 
-	vs := z.client.GetVolumeSnapshots(ctx, project, labels)
-	if vs != nil {
-		for _, object := range vs {
-			instance, exists, instanceMap = helper.GetInstance(instanceMap, helper.GetResourceLabels(&object))
-			if exists {
-				instance.Resources = append(instance.Resources, *helper.CreateCoreResource(ctx, model.ResourceVolumeSnapshot, &object, z.client))
-				instanceMap[instance.Name] = *instance
-			}
-		}
-	}
+	//vs := z.client.GetVolumeSnapshots(ctx, project, labels)
+	//if vs != nil {
+	//	for _, object := range vs {
+	//		instance, exists, instanceMap = helper.GetInstance(instanceMap, helper.GetResourceLabels(&object))
+	//		if exists {
+	//			instance.Resources = append(instance.Resources, *helper.CreateCoreResource(ctx, model.ResourceVolumeSnapshot, &object, z.client))
+	//			instanceMap[instance.Name] = *instance
+	//		}
+	//	}
+	//}
 
-	schs := z.client.GetSnapshotSchedules(ctx, project, labels)
-	if schs != nil {
-		for _, object := range schs {
-			instance, exists, instanceMap = helper.GetInstance(instanceMap, helper.GetResourceLabels(&object))
-			if exists {
-				instance.Resources = append(instance.Resources, *helper.CreateCoreResource(ctx, model.ResourceSnapshotSchedule, &object, z.client))
-				instanceMap[instance.Name] = *instance
-			}
-		}
-	}
+	//schs := z.client.GetSnapshotSchedules(ctx, project, labels)
+	//if schs != nil {
+	//	for _, object := range schs {
+	//		instance, exists, instanceMap = helper.GetInstance(instanceMap, helper.GetResourceLabels(&object))
+	//		if exists {
+	//			instance.Resources = append(instance.Resources, *helper.CreateCoreResource(ctx, model.ResourceSnapshotSchedule, &object, z.client))
+	//			instanceMap[instance.Name] = *instance
+	//		}
+	//	}
+	//}
 
-	ingresses := z.client.GetIngresses(ctx, project, labels)
-	if ingresses != nil {
-		for _, object := range ingresses {
-			instance, exists, instanceMap = helper.GetInstance(instanceMap, helper.GetResourceLabels(&object))
-			if exists {
-				instance.Resources = append(instance.Resources, *helper.CreateCoreResource(ctx, model.ResourceHTTPProxy, &object, z.client))
-				instanceMap[instance.Name] = *instance
-			}
-		}
-	}
+	//ingresses := z.client.GetIngresses(ctx, project, labels)
+	//if ingresses != nil {
+	//	for _, object := range ingresses {
+	//		instance, exists, instanceMap = helper.GetInstance(instanceMap, helper.GetResourceLabels(&object))
+	//		if exists {
+	//			instance.Resources = append(instance.Resources, *helper.CreateCoreResource(ctx, model.ResourceHTTPProxy, &object, z.client))
+	//			instanceMap[instance.Name] = *instance
+	//		}
+	//	}
+	//}
+
+	//for _, instance := range instanceMap {
+	//	instances = append(instances, instance)
+	//}
+
+	return instances, nil
+}
+
+func (z *ZBIClient) GetInstances(ctx context.Context, project *model.Project, instanceNames []string) ([]model.Instance, error) {
+
+	log := logger.GetServiceLogger(ctx, "zbi.GetInstance")
+	defer logger.LogServiceTime(log)
 
 	instances := make([]model.Instance, 0)
-	for _, instance := range instanceMap {
-		instances = append(instances, instance)
+	for _, iname := range instanceNames {
+		instance, err := z.GetInstance(ctx, project, iname)
+		if err != nil {
+
+		} else {
+			instances = append(instances, *instance)
+		}
 	}
 
 	return instances, nil
 }
 
-func (z *ZBIClient) GetInstance(ctx context.Context, project, instance string) (*model.Instance, error) {
+func (z *ZBIClient) GetInstance(ctx context.Context, project *model.Project, name string) (*model.Instance, error) {
 
-	return nil, nil
+	log := logger.GetServiceLogger(ctx, "zbi.GetInstance")
+	defer logger.LogServiceTime(log)
+
+	//	labels := map[string]string{"platform": "zbi", "project": project.Name, "instance": name}
+
+	var resources *model.KubernetesResources
+	var err error
+
+	resources, err = z.GetInstanceResources(ctx, project, name)
+	if err != nil {
+		return nil, err
+	}
+
+	var instance = model.Instance{
+		Name:         name,
+		Project:      project.Name,
+		InstanceType: project.GetInstanceType(name),
+		Resources:    resources,
+	}
+
+	//cmaps, _ := z.client.GetConfigMaps(ctx, project.Name, labels)
+	//if cmaps != nil {
+	//	for _, object := range cmaps {
+	//		instance.InstanceType = model.InstanceType(labels["type"])
+	//		instance.Resources = append(instance.Resources, *helper.CreateCoreResource(ctx, model.ResourceConfigMap, &object, z.client))
+	//	}
+	//}
+	//
+	//secrets, _ := z.client.GetSecrets(ctx, project, labels)
+	//if secrets != nil {
+	//	for _, object := range secrets {
+	//		instance.Resources = append(instance.Resources, *helper.CreateCoreResource(ctx, model.ResourceSecret, &object, z.client))
+	//	}
+	//}
+	//
+	//pvcs, _ := z.client.GetPersistentVolumeClaims(ctx, project, labels)
+	//if pvcs != nil {
+	//	for _, object := range pvcs {
+	//		instance.Resources = append(instance.Resources, *helper.CreateCoreResource(ctx, model.ResourcePersistentVolumeClaim, &object, z.client))
+	//	}
+	//}
+	//
+	//deps := z.client.GetDeployments(ctx, project, labels)
+	//if deps != nil {
+	//	for _, object := range deps {
+	//		deployment := helper.CreateCoreResource(ctx, model.ResourceDeployment, &object, z.client)
+	//		instance.Resources = append(instance.Resources, *deployment)
+	//	}
+	//}
+	//
+	//svcs, _ := z.client.GetServices(ctx, project, labels)
+	//if svcs != nil {
+	//	for _, object := range svcs {
+	//		instance.Resources = append(instance.Resources, *helper.CreateCoreResource(ctx, model.ResourceService, &object, z.client))
+	//	}
+	//}
+	//
+	//vs := z.client.GetVolumeSnapshots(ctx, project, labels)
+	//if vs != nil {
+	//	for _, object := range vs {
+	//		instance.Resources = append(instance.Resources, *helper.CreateCoreResource(ctx, model.ResourceVolumeSnapshot, &object, z.client))
+	//	}
+	//}
+	//
+	//schs := z.client.GetSnapshotSchedules(ctx, project, labels)
+	//if schs != nil {
+	//	for _, object := range schs {
+	//		instance.Resources = append(instance.Resources, *helper.CreateCoreResource(ctx, model.ResourceSnapshotSchedule, &object, z.client))
+	//	}
+	//}
+	//
+	//ingresses := z.client.GetIngresses(ctx, project, labels)
+	//if ingresses != nil {
+	//	for _, object := range ingresses {
+	//		instance.Resources = append(instance.Resources, *helper.CreateCoreResource(ctx, model.ResourceHTTPProxy, &object, z.client))
+	//	}
+	//}
+
+	return &instance, nil
 }
 
-func (z *ZBIClient) GetInstanceResources(ctx context.Context, project, instance string) ([]model.KubernetesResource, error) {
+func (z *ZBIClient) GetInstanceResources(ctx context.Context, project *model.Project, instance string) (*model.KubernetesResources, error) {
 
 	var log = logger.GetServiceLogger(ctx, "zbi.GetInstanceResources")
 	defer func() { logger.LogServiceTime(log) }()
 
-	labels := map[string]string{"project": project, "instance": instance}
+	labels := map[string]string{"project": project.Name, "instance": instance}
 
-	resources := make([]model.KubernetesResource, 0)
+	resources := model.KubernetesResources{
+		Resources: make([]model.KubernetesResource, 0),
+		Snapshots: make([]model.KubernetesResource, 0),
+		Schedules: make([]model.KubernetesResource, 0),
+	}
 
-	cmaps, _ := z.client.GetConfigMaps(ctx, project, labels)
+	cmaps, _ := z.client.GetConfigMaps(ctx, project.GetNamespace(), labels)
 	if cmaps != nil {
 		for _, object := range cmaps {
-			resources = append(resources, *helper.CreateCoreResource(ctx, model.ResourceConfigMap, &object, z.client))
+			resources.Resources = append(resources.Resources, *helper.CreateCoreResource(ctx, model.ResourceConfigMap, &object, z.client))
 		}
 	}
 
-	secrets, _ := z.client.GetSecrets(ctx, project, labels)
+	secrets, _ := z.client.GetSecrets(ctx, project.GetNamespace(), labels)
 	if secrets != nil {
 		for _, object := range secrets {
-			resources = append(resources, *helper.CreateCoreResource(ctx, model.ResourceSecret, &object, z.client))
+			resources.Resources = append(resources.Resources, *helper.CreateCoreResource(ctx, model.ResourceSecret, &object, z.client))
 		}
 	}
 
-	pvcs, _ := z.client.GetPersistentVolumeClaims(ctx, project, labels)
+	pvcs, _ := z.client.GetPersistentVolumeClaims(ctx, project.GetNamespace(), labels)
 	if pvcs != nil {
 		for _, object := range pvcs {
-			resources = append(resources, *helper.CreateCoreResource(ctx, model.ResourcePersistentVolumeClaim, &object, z.client))
+			resources.Resources = append(resources.Resources, *helper.CreateCoreResource(ctx, model.ResourcePersistentVolumeClaim, &object, z.client))
 		}
 	}
 
-	deps := z.client.GetDeployments(ctx, project, labels)
+	deps := z.client.GetDeployments(ctx, project.GetNamespace(), labels)
 	if deps != nil {
 		for _, object := range deps {
-
 			deployment := helper.CreateCoreResource(ctx, model.ResourceDeployment, &object, z.client)
-
-			//pods := z.client.GetPods(ctx, project, object.Spec.Template.Labels)
-			//podMap := make(map[string]interface{})
-			//for _, p := range pods {
-			//	podMap[p.Name] = map[string]interface{}{
-			//		"status":    strings.ToLower(string(p.Status.Phase)),
-			//		"startTime": p.Status.StartTime.Time,
-			//	}
-			//}
-			//deployment.Properties["pods"] = podMap
-
-			resources = append(resources, *deployment)
+			resources.Resources = append(resources.Resources, *deployment)
 		}
 	}
 
-	svcs, _ := z.client.GetServices(ctx, project, labels)
+	svcs, _ := z.client.GetServices(ctx, project.GetNamespace(), labels)
 	if svcs != nil {
 		for _, object := range svcs {
-			resources = append(resources, *helper.CreateCoreResource(ctx, model.ResourceService, &object, z.client))
+			resources.Resources = append(resources.Resources, *helper.CreateCoreResource(ctx, model.ResourceService, &object, z.client))
 		}
 	}
 
-	vs := z.client.GetVolumeSnapshots(ctx, project, labels)
+	vs := z.client.GetVolumeSnapshots(ctx, project.GetNamespace(), labels)
 	if vs != nil {
 		for _, object := range vs {
-			resources = append(resources, *helper.CreateCoreResource(ctx, model.ResourceVolumeSnapshot, &object, z.client))
+			resources.Snapshots = append(resources.Snapshots, *helper.CreateCoreResource(ctx, model.ResourceVolumeSnapshot, &object, z.client))
 		}
 	}
 
-	schs := z.client.GetSnapshotSchedules(ctx, project, labels)
+	schs := z.client.GetSnapshotSchedules(ctx, project.GetNamespace(), labels)
 	if schs != nil {
 		for _, object := range schs {
-			resources = append(resources, *helper.CreateCoreResource(ctx, model.ResourceSnapshotSchedule, &object, z.client))
+			resources.Schedules = append(resources.Schedules, *helper.CreateCoreResource(ctx, model.ResourceSnapshotSchedule, &object, z.client))
 		}
 	}
 
-	ingresses := z.client.GetIngresses(ctx, project, labels)
+	ingresses := z.client.GetIngresses(ctx, project.GetNamespace(), labels)
 	if ingresses != nil {
 		for _, object := range ingresses {
-			resources = append(resources, *helper.CreateCoreResource(ctx, model.ResourceHTTPProxy, &object, z.client))
+			resources.Resources = append(resources.Resources, *helper.CreateCoreResource(ctx, model.ResourceHTTPProxy, &object, z.client))
 		}
 	}
 
-	return resources, nil
+	return &resources, nil
 }
 
-func (z *ZBIClient) GetInstanceResource(ctx context.Context, project, instance, resourceName string, resourceType model.ResourceObjectType) (*model.KubernetesResource, error) {
+func (z *ZBIClient) GetInstanceResource(ctx context.Context, project *model.Project, instance, resourceName string, resourceType model.ResourceObjectType) (*model.KubernetesResource, error) {
 
 	var log = logger.GetServiceLogger(ctx, "zbi.GetInstanceResource")
 	defer func() { logger.LogServiceTime(log) }()
 
-	object, err := z.client.GetDynamicResource(ctx, project, resourceName, helper.GvrMap[resourceType])
+	object, err := z.client.GetDynamicResource(ctx, project.GetNamespace(), resourceName, helper.GvrMap[resourceType])
 	if err != nil {
 		return nil, err
 	}
@@ -506,7 +612,7 @@ func (z *ZBIClient) GetInstanceResource(ctx context.Context, project, instance, 
 
 	if resourceType == model.ResourceDeployment {
 		labels := helper.GetResourceField(object, "spec.template.labels").(map[string]string)
-		pods := z.client.GetPods(ctx, project, labels)
+		pods := z.client.GetPods(ctx, project.GetNamespace(), labels)
 		podMap := make(map[string]interface{})
 		for _, p := range pods {
 			podMap[p.Name] = map[string]interface{}{
@@ -532,12 +638,18 @@ func (z *ZBIClient) DeleteInstanceResource(ctx context.Context, project *model.P
 	return nil
 }
 
-func (z *ZBIClient) UpdateInstance(ctx context.Context, project *model.Project, instance *model.Instance, request *model.ResourceRequest, peers ...*model.Instance) error {
+func (z *ZBIClient) UpdateInstance(ctx context.Context, project *model.Project, instance *model.Instance, request *model.ResourceRequest) error {
 
 	var log = logger.GetServiceLogger(ctx, "zbi.UpdateInstance")
 	defer func() { logger.LogServiceTime(log) }()
 
 	dataMgr := vars.ManagerFactory.GetProjectDataManager(ctx)
+
+	peers, err := z.GetInstances(ctx, project, request.Peers)
+	if err != nil {
+		log.WithFields(logrus.Fields{"error": err}).Errorf("failed to get peer instances")
+		return err
+	}
 
 	objects, err := dataMgr.CreateUpdateResource(ctx, project, instance, request, peers...)
 	if err != nil {
@@ -551,7 +663,7 @@ func (z *ZBIClient) UpdateInstance(ctx context.Context, project *model.Project, 
 		return err
 	}
 
-	instance.Resources = make([]model.KubernetesResource, 0)
+	//	instance.Resources = make([]model.KubernetesResource, 0)
 	instance.AddResources(resources...)
 
 	if peers != nil && len(objects) > 1 {
@@ -581,15 +693,15 @@ func (z *ZBIClient) DeleteInstance(ctx context.Context, project *model.Project, 
 		return err
 	}
 
-	if instance.Resources == nil || len(instance.Resources) == 0 {
-		instance.Resources, err = z.GetInstanceResources(ctx, instance.Project, instance.Name)
+	if !instance.HasResources() {
+		instance.Resources, err = z.GetInstanceResources(ctx, project, instance.Name)
 		if err != nil {
 			log.WithFields(logrus.Fields{"error": err}).Errorf("failed to get instance resources")
 			return err
 		}
 	}
 
-	resources, newResources, err := vars.ManagerFactory.GetProjectDataManager(ctx).CreateDeleteResource(ctx, projIngress, project, instance, instance.Resources)
+	resources, newResources, err := vars.ManagerFactory.GetProjectDataManager(ctx).CreateDeleteResource(ctx, projIngress, project, instance, instance.GetResources())
 
 	_, err = z.client.ApplyResources(ctx, newResources)
 	if err != nil {
@@ -612,8 +724,8 @@ func (z *ZBIClient) RepairInstance(ctx context.Context, project *model.Project, 
 		return err
 	}
 
-	if instance.Resources == nil || len(instance.Resources) == 0 {
-		instance.Resources, err = z.GetInstanceResources(ctx, instance.Project, instance.Name)
+	if !instance.HasResources() {
+		instance.Resources, err = z.GetInstanceResources(ctx, project, instance.Name)
 		if err != nil {
 			log.WithFields(logrus.Fields{"error": err}).Errorf("failed to get instance resources")
 			return err
@@ -628,14 +740,13 @@ func (z *ZBIClient) RepairInstance(ctx context.Context, project *model.Project, 
 		return err
 	}
 
-	resources, err := z.client.ApplyResources(ctx, objects)
+	newResources, err := z.client.ApplyResources(ctx, objects)
 	if err != nil {
 		log.Errorf("instance kubernetes resource creation failed - %s", err)
 		return err
 	}
 
-	instance.AddResources(resources...)
-	log.Infof("created %d resources for instance %s in project %s", len(instance.Resources), instance.Name, instance.Project)
+	instance.AddResources(newResources...)
 
 	return nil
 }
@@ -653,8 +764,8 @@ func (z *ZBIClient) StopInstance(ctx context.Context, project *model.Project, in
 		return err
 	}
 
-	if instance.Resources == nil || len(instance.Resources) == 0 {
-		instance.Resources, err = z.GetInstanceResources(ctx, instance.Project, instance.Name)
+	if !instance.HasResources() {
+		instance.Resources, err = z.GetInstanceResources(ctx, project, instance.Name)
 		if err != nil {
 			log.WithFields(logrus.Fields{"error": err}).Errorf("failed to get instance resources")
 			return err
@@ -680,45 +791,6 @@ func (z *ZBIClient) StopInstance(ctx context.Context, project *model.Project, in
 	}
 	instance.AddResources(resources...)
 
-	//objects, err := rscMgr.CreateStartResource(ctx, instance)
-	//if err != nil {
-	//	log.Errorf("instance kubernetes resource generation failed - %s", err)
-	//	return err
-	//}
-
-	//for _, obj := range objects {
-	//	objType := model.ResourceObjectType(obj.GetKind())
-	//	if objType == model.ResourceDeployment {
-	//		if err = z.client.DeleteDynamicResource(ctx, obj.GetNamespace(), obj.GetName(), helper.GvrMap[objType]); err != nil {
-	//			log.Errorf("Failed to delete %s - %s", objType, err)
-	//			if evtErr == nil {
-	//				evtErr = err
-	//			} else {
-	//				evtErr = errors.Wrap(evtErr, err.Error())
-	//			}
-	//		}
-	//
-	//	} else if objType == model.ResourceService {
-	//		// TODO map service to Stopped display by updating label match
-	//	}
-	//}
-
-	//if evtErr != nil {
-	//	return evtErr
-	//}
-
-	//obj, err := rscMgr.CreateIngressResource(ctx, projectIngress, instance, model.EventActionStopInstance)
-	//if err != nil {
-	//	log.Errorf("Instance ingress object creation failed - %s", err)
-	//	return err
-	//} else {
-	//	_, err = z.client.ApplyResource(ctx, obj)
-	//	if err != nil {
-	//		log.Errorf("Instance ingress resource creation failed - %s", err)
-	//		return err
-	//	}
-	//}
-
 	return nil
 }
 
@@ -735,8 +807,8 @@ func (z *ZBIClient) StartInstance(ctx context.Context, project *model.Project, i
 		return err
 	}
 
-	if instance.Resources == nil || len(instance.Resources) == 0 {
-		instance.Resources, err = z.GetInstanceResources(ctx, instance.Project, instance.Name)
+	if !instance.HasResources() {
+		instance.Resources, err = z.GetInstanceResources(ctx, project, instance.Name)
 		if err != nil {
 			log.WithFields(logrus.Fields{"error": err}).Errorf("failed to get instance resources")
 			return err
@@ -750,13 +822,6 @@ func (z *ZBIClient) StartInstance(ctx context.Context, project *model.Project, i
 		return err
 	}
 
-	//obj, err := rscMgr.CreateIngressResource(ctx, projectIngress, project, instance, model.EventActionStartInstance)
-	//if err != nil {
-	//	log.Errorf("instance ingress object creation failed - %s", err)
-	//	return err
-	//}
-	//
-	//objects = append(objects, *obj)
 	resources, err := z.client.ApplyResources(ctx, objects)
 
 	if err != nil {
@@ -777,8 +842,8 @@ func (z *ZBIClient) RotateInstanceCredentials(ctx context.Context, project *mode
 	defer func() { logger.LogServiceTime(log) }()
 
 	var err error
-	if instance.Resources == nil || len(instance.Resources) == 0 {
-		instance.Resources, err = z.GetInstanceResources(ctx, instance.Project, instance.Name)
+	if !instance.HasResources() {
+		instance.Resources, err = z.GetInstanceResources(ctx, project, instance.Name)
 		if err != nil {
 			log.WithFields(logrus.Fields{"error": err}).Errorf("failed to get instance resources")
 			return err
@@ -811,8 +876,8 @@ func (z *ZBIClient) CreateSnapshot(ctx context.Context, project *model.Project, 
 	defer func() { logger.LogServiceTime(log) }()
 
 	var err error
-	if instance.Resources == nil || len(instance.Resources) == 0 {
-		instance.Resources, err = z.GetInstanceResources(ctx, instance.Project, instance.Name)
+	if !instance.HasResources() {
+		instance.Resources, err = z.GetInstanceResources(ctx, project, instance.Name)
 		if err != nil {
 			log.WithFields(logrus.Fields{"error": err}).Errorf("failed to get instance resources")
 			return err
@@ -846,8 +911,8 @@ func (z *ZBIClient) CreateSnapshotSchedule(ctx context.Context, project *model.P
 	defer func() { logger.LogServiceTime(log) }()
 
 	var err error
-	if instance.Resources == nil || len(instance.Resources) == 0 {
-		instance.Resources, err = z.GetInstanceResources(ctx, instance.Project, instance.Name)
+	if !instance.HasResources() {
+		instance.Resources, err = z.GetInstanceResources(ctx, project, instance.Name)
 		if err != nil {
 			log.WithFields(logrus.Fields{"error": err}).Errorf("failed to get instance resources")
 			return err

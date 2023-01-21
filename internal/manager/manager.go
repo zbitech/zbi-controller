@@ -130,7 +130,7 @@ func createZcashConf(ic *object.InstanceConfig, miner bool, network model.Networ
 	return zcashConf
 }
 
-func getZcashPeers(conf []object.KVPair, rpcport string, namespace string, peers ...*model.Instance) []object.KVPair {
+func getZcashPeers(conf []object.KVPair, rpcport string, namespace string, peers ...model.Instance) []object.KVPair {
 	connect := make([]string, 0)
 	// peerProperty := ""
 	if peers != nil {

@@ -26,11 +26,11 @@ spec:
 {{- if .StorageClass}}
   storageClassName: {{.StorageClass}}
 {{- end}}
-{{- if eq .DataSourceType "pvc" }}
+{{- if eq .VolumeSourceType "pvc" }}
   dataSource:
     name: {{.SourceName}}
     kind: PersistentVolumeClaim
-{{- else if eq .DataSourceType "snapshot" }}
+{{- else if eq .VolumeSourceType "snapshot" }}
   dataSource:
     name: {{.SourceName}}
     kind: VolumeSnapshot

@@ -100,7 +100,7 @@ func CreateUnstructuredResource(result *unstructured.Unstructured) *model.Kubern
 }
 
 func GetResourceRequest(ctx context.Context, instance *model.Instance) (*model.ResourceRequest, bool) {
-	for _, resource := range instance.Resources {
+	for _, resource := range instance.Resources.Resources {
 		if resource.Type == model.ResourceConfigMap {
 			properties, ok := resource.Properties["request"]
 			if ok {
@@ -428,27 +428,27 @@ func CreateProjectLabels(project *model.Project) map[string]string {
 	}
 }
 
-func GetInstance(instanceMap map[string]model.Instance, labels map[string]string) (*model.Instance, bool, map[string]model.Instance) {
-
-	instance, ok := instanceMap[labels["instance"]]
-	if !ok {
-
-		name, isInstance := labels["instance"]
-		if isInstance {
-			instance = model.Instance{
-				Name:         name,
-				InstanceType: model.InstanceType(labels["type"]),
-				Project:      labels["project"],
-				Resources:    make([]model.KubernetesResource, 0),
-			}
-			instanceMap[instance.Name] = instance
-		} else {
-			return nil, false, instanceMap
-		}
-	}
-
-	return &instance, true, instanceMap
-}
+//func GetInstance(instanceMap map[string]model.Instance, labels map[string]string) (*model.Instance, bool, map[string]model.Instance) {
+//
+//	instance, ok := instanceMap[labels["instance"]]
+//	if !ok {
+//
+//		name, isInstance := labels["instance"]
+//		if isInstance {
+//			instance = model.Instance{
+//				Name:         name,
+//				InstanceType: model.InstanceType(labels["type"]),
+//				Project:      labels["project"],
+//				Resources:    make([]model.KubernetesResource, 0),
+//			}
+//			instanceMap[instance.Name] = instance
+//		} else {
+//			return nil, false, instanceMap
+//		}
+//	}
+//
+//	return &instance, true, instanceMap
+//}
 
 func CreateInstanceLabels(instance *model.Instance) map[string]string {
 	return map[string]string{

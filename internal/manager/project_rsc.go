@@ -32,8 +32,7 @@ func (p ProjectResourceManager) CreateProjectResource(ctx context.Context, proje
 	fileTemplate := helper.Config.GetProjectTemplate()
 
 	projectSpec := model.ProjectSpec{
-		Name: project.Name,
-		//		Version:   project.Version,
+		Name:      project.Name,
 		Network:   project.Network,
 		Owner:     project.Owner,
 		TeamId:    project.TeamId,
@@ -147,7 +146,7 @@ func (p ProjectResourceManager) CreateProjectIngressResource(ctx context.Context
 	return []unstructured.Unstructured{appIng, objIng}, nil
 }
 
-func (p ProjectResourceManager) CreateInstanceResource(ctx context.Context, projIngress *unstructured.Unstructured, project *model.Project, instance *model.Instance, request *model.ResourceRequest, peers ...*model.Instance) ([][]unstructured.Unstructured, error) {
+func (p ProjectResourceManager) CreateInstanceResource(ctx context.Context, projIngress *unstructured.Unstructured, project *model.Project, instance *model.Instance, request *model.ResourceRequest, peers ...model.Instance) ([][]unstructured.Unstructured, error) {
 	instanceManager, ok := p.instances[instance.InstanceType]
 	if !ok {
 		return nil, errors.New("resource retrieval error")
@@ -156,7 +155,7 @@ func (p ProjectResourceManager) CreateInstanceResource(ctx context.Context, proj
 	return instanceManager.CreateInstanceResource(ctx, projIngress, project, instance, request, peers...)
 }
 
-func (p ProjectResourceManager) CreateUpdateResource(ctx context.Context, project *model.Project, instance *model.Instance, request *model.ResourceRequest, peers ...*model.Instance) ([][]unstructured.Unstructured, error) {
+func (p ProjectResourceManager) CreateUpdateResource(ctx context.Context, project *model.Project, instance *model.Instance, request *model.ResourceRequest, peers ...model.Instance) ([][]unstructured.Unstructured, error) {
 	instanceManager, ok := p.instances[instance.InstanceType]
 	if !ok {
 		return nil, errors.New("resource retrieval error")
@@ -183,7 +182,7 @@ func (p ProjectResourceManager) CreateStopResource(ctx context.Context, projIngr
 	return instanceManager.CreateStopResource(ctx, projIngress, project, instance)
 }
 
-func (p ProjectResourceManager) CreateRepairResource(ctx context.Context, projIngress *unstructured.Unstructured, project *model.Project, instance *model.Instance, peers ...*model.Instance) ([]unstructured.Unstructured, error) {
+func (p ProjectResourceManager) CreateRepairResource(ctx context.Context, projIngress *unstructured.Unstructured, project *model.Project, instance *model.Instance, peers ...model.Instance) ([]unstructured.Unstructured, error) {
 	instanceManager, ok := p.instances[instance.InstanceType]
 	if !ok {
 		return nil, errors.New("resource retrieval error")

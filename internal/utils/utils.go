@@ -52,6 +52,14 @@ func MarshalObject(obj interface{}) string {
 	return ""
 }
 
+func UnMarshalObject(data string, obj interface{}) error {
+	if err := json.Unmarshal([]byte(data), obj); err != nil {
+		return err
+	}
+
+	return nil
+}
+
 func ReadFile(path string) ([]byte, error) {
 	//name := strings.Split(filepath.Base(path), ".")[0]
 	data, err := os.ReadFile(path)

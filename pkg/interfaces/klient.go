@@ -34,13 +34,14 @@ type ZBIClientIF interface {
 	GetProjectResources(ctx context.Context, project string) ([]model.KubernetesResource, error)
 	GetProjectResource(ctx context.Context, project, resourceName string, resourceType model.ResourceObjectType) (*model.KubernetesResource, error)
 
-	CreateInstance(ctx context.Context, project *model.Project, instance *model.Instance, request *model.ResourceRequest, peers ...*model.Instance) error
-	GetInstances(ctx context.Context, project string) ([]model.Instance, error)
-	GetInstance(ctx context.Context, project, instance string) (*model.Instance, error)
-	GetInstanceResources(ctx context.Context, project, instance string) ([]model.KubernetesResource, error)
-	GetInstanceResource(ctx context.Context, project, instance, resourceName string, resourceType model.ResourceObjectType) (*model.KubernetesResource, error)
+	CreateInstance(ctx context.Context, project *model.Project, instance *model.Instance, request *model.ResourceRequest) error
+	GetAllInstances(ctx context.Context, project *model.Project) ([]model.Instance, error)
+	GetInstances(ctx context.Context, project *model.Project, instances []string) ([]model.Instance, error)
+	GetInstance(ctx context.Context, project *model.Project, instance string) (*model.Instance, error)
+	GetInstanceResources(ctx context.Context, project *model.Project, instance string) (*model.KubernetesResources, error)
+	GetInstanceResource(ctx context.Context, project *model.Project, instance, resourceName string, resourceType model.ResourceObjectType) (*model.KubernetesResource, error)
 	DeleteInstanceResource(ctx context.Context, project *model.Project, instance *model.Instance, resourceName string, resourceType model.ResourceObjectType) error
-	UpdateInstance(ctx context.Context, project *model.Project, instance *model.Instance, request *model.ResourceRequest, peers ...*model.Instance) error
+	UpdateInstance(ctx context.Context, project *model.Project, instance *model.Instance, request *model.ResourceRequest) error
 	DeleteInstance(ctx context.Context, project *model.Project, instance *model.Instance) error
 	RepairInstance(ctx context.Context, project *model.Project, instance *model.Instance) error
 	StopInstance(ctx context.Context, project *model.Project, instance *model.Instance) error
