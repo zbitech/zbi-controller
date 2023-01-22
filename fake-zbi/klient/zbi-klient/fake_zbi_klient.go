@@ -17,13 +17,13 @@ type FakeZBIClient struct {
 	FakeDeleteProject             func(ctx context.Context, project *model.Project, instances []model.Instance) error
 	FakeGetProjectResources       func(ctx context.Context, project string) ([]model.KubernetesResource, error)
 	FakeGetProjectResource        func(ctx context.Context, project, resourceName string, resourceType model.ResourceObjectType) (*model.KubernetesResource, error)
-	FakeCreateInstance            func(ctx context.Context, project *model.Project, instance *model.Instance, request *model.ResourceRequest) error
+	FakeCreateInstance            func(ctx context.Context, project *model.Project, instance *model.Instance) error
 	FakeGetAllInstances           func(ctx context.Context, project *model.Project) ([]model.Instance, error)
 	FakeGetInstances              func(ctx context.Context, project *model.Project, instances []string) ([]model.Instance, error)
 	FakeGetInstanceResources      func(ctx context.Context, project *model.Project, instance string) (*model.KubernetesResources, error)
 	FakeGetInstanceResource       func(ctx context.Context, project *model.Project, instance, resourceName string, resourceType model.ResourceObjectType) (*model.KubernetesResource, error)
 	FakeDeleteInstanceResource    func(ctx context.Context, project *model.Project, instance *model.Instance, resourceName string, resourceType model.ResourceObjectType) error
-	FakeUpdateInstance            func(ctx context.Context, project *model.Project, instance *model.Instance, request *model.ResourceRequest) error
+	FakeUpdateInstance            func(ctx context.Context, project *model.Project, instance *model.Instance) error
 	FakeDeleteInstance            func(ctx context.Context, project *model.Project, instance *model.Instance) error
 	FakeRepairInstance            func(ctx context.Context, project *model.Project, instance *model.Instance) error
 	FakeStopInstance              func(ctx context.Context, project *model.Project, instance *model.Instance) error
@@ -79,8 +79,8 @@ func (f FakeZBIClient) GetProjectResource(ctx context.Context, project, resource
 	return f.FakeGetProjectResource(ctx, project, resourceName, resourceType)
 }
 
-func (f FakeZBIClient) CreateInstance(ctx context.Context, project *model.Project, instance *model.Instance, request *model.ResourceRequest) error {
-	return f.FakeCreateInstance(ctx, project, instance, request)
+func (f FakeZBIClient) CreateInstance(ctx context.Context, project *model.Project, instance *model.Instance) error {
+	return f.FakeCreateInstance(ctx, project, instance)
 }
 
 func (f FakeZBIClient) GetInstances(ctx context.Context, project *model.Project, instances []string) ([]model.Instance, error) {
@@ -99,8 +99,8 @@ func (f FakeZBIClient) DeleteInstanceResource(ctx context.Context, project *mode
 	return f.FakeDeleteInstanceResource(ctx, project, instance, resourceName, resourceType)
 }
 
-func (f FakeZBIClient) UpdateInstance(ctx context.Context, project *model.Project, instance *model.Instance, request *model.ResourceRequest) error {
-	return f.FakeUpdateInstance(ctx, project, instance, request)
+func (f FakeZBIClient) UpdateInstance(ctx context.Context, project *model.Project, instance *model.Instance) error {
+	return f.FakeUpdateInstance(ctx, project, instance)
 }
 
 func (f FakeZBIClient) DeleteInstance(ctx context.Context, project *model.Project, instance *model.Instance) error {

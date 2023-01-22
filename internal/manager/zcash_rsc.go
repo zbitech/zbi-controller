@@ -35,7 +35,7 @@ func NewZcashInstanceResourceManager() interfaces.InstanceResourceManagerIF {
 	return &ZcashInstanceResourceManager{}
 }
 
-func (z *ZcashInstanceResourceManager) CreateInstanceResource(ctx context.Context, projIngress *unstructured.Unstructured, project *model.Project, instance *model.Instance, request *model.ResourceRequest, peers ...model.Instance) ([][]unstructured.Unstructured, error) {
+func (z *ZcashInstanceResourceManager) CreateInstanceResource(ctx context.Context, projIngress *unstructured.Unstructured, project *model.Project, instance *model.Instance, peers ...model.Instance) ([][]unstructured.Unstructured, error) {
 
 	var log = logger.GetServiceLogger(ctx, "zcash.CreateInstanceResource")
 	defer func() { logger.LogServiceTime(log) }()
@@ -54,6 +54,7 @@ func (z *ZcashInstanceResourceManager) CreateInstanceResource(ctx context.Contex
 		return nil, err
 	}
 
+	var request = instance.Request
 	//	txIndex := instance.Properties["transactionIndex"].(bool)
 	miner := request.Properties[MINER_ZCASH_PROPERTY].(bool)
 	//	peers := instance.Properties["peers"].([]interface{})
@@ -61,11 +62,6 @@ func (z *ZcashInstanceResourceManager) CreateInstanceResource(ctx context.Contex
 	rpcport := strconv.FormatInt(int64(ic.GetPort(SERVICE_PORT)), 10)
 	conf := createZcashConf(ic, miner, project.Network, rpcport)
 	conf = getZcashPeers(conf, rpcport, project.GetNamespace(), peers...)
-
-	//conf = updateZcashPeers(conf, ic.GetPort("service"), peers...)
-	//conf := object.NewZcashConf(instance.Network, txIndex, miner)
-	//conf.AddPeer(peers...)
-	//conf.SetPort(ic.GetPort("service"))
 
 	dataVolumeName := fmt.Sprintf("%s-%s", instance.Name, utils.GenerateRandomString(5, true))
 	dataVolumeSize := request.VolumeSize
@@ -184,10 +180,12 @@ func (z *ZcashInstanceResourceManager) CreateUpdatePeersResource(ctx context.Con
 
 	rpcport := strconv.FormatInt(int64(ic.GetPort("service")), 10)
 
-	request, ok := helper.GetResourceRequest(ctx, instance)
-	if !ok {
-		return nil, errors.New("unable to retrieve resource request for instance")
-	}
+	var request = instance.Request
+
+	//request, ok := helper.GetResourceRequest(ctx, instance)
+	//if !ok {
+	//	return nil, errors.New("unable to retrieve resource request for instance")
+	//}
 
 	miner := request.Properties["miner"].(bool)
 	conf := createZcashConf(ic, miner, project.Network, rpcport)
@@ -214,7 +212,7 @@ func (z *ZcashInstanceResourceManager) CreateUpdatePeersResource(ctx context.Con
 	return helper.CreateYAMLObjects(specArr)
 }
 
-func (z *ZcashInstanceResourceManager) CreateUpdateResource(ctx context.Context, project *model.Project, instance *model.Instance, request *model.ResourceRequest, peers ...model.Instance) ([][]unstructured.Unstructured, error) {
+func (z *ZcashInstanceResourceManager) CreateUpdateResource(ctx context.Context, project *model.Project, instance *model.Instance, peers ...model.Instance) ([][]unstructured.Unstructured, error) {
 
 	var log = logger.GetServiceLogger(ctx, "zcash.CreateUpdateResource")
 	defer func() { logger.LogServiceTime(log) }()
@@ -231,6 +229,8 @@ func (z *ZcashInstanceResourceManager) CreateUpdateResource(ctx context.Context,
 	}
 
 	rpcport := strconv.FormatInt(int64(ic.GetPort("service")), 10)
+
+	var request = instance.Request
 
 	miner := request.Properties["miner"].(bool)
 	conf := createZcashConf(ic, miner, project.Network, rpcport)
@@ -460,10 +460,11 @@ func (z *ZcashInstanceResourceManager) CreateRepairResource(ctx context.Context,
 	pvc := instance.GetResourceByType(model.ResourcePersistentVolumeClaim)
 	secret := instance.GetResourceByType(model.ResourceSecret)
 
-	request, ok := helper.GetResourceRequest(ctx, instance)
-	if !ok {
-		return nil, errors.New("unable to retrieve resource request for instance")
-	}
+	//request, ok := helper.GetResourceRequest(ctx, instance)
+	//if !ok {
+	//	return nil, errors.New("unable to retrieve resource request for instance")
+	//}
+	var request = instance.Request
 
 	miner := request.Properties[MINER_ZCASH_PROPERTY].(bool)
 	rpcport := strconv.FormatInt(int64(ic.GetPort(SERVICE_PORT)), 10)

@@ -309,13 +309,14 @@ func (z *ZBIClient) GetProjectResource(ctx context.Context, project, resourceNam
 	return resource, nil
 }
 
-func (z *ZBIClient) CreateInstance(ctx context.Context, project *model.Project, instance *model.Instance, request *model.ResourceRequest) error {
+func (z *ZBIClient) CreateInstance(ctx context.Context, project *model.Project, instance *model.Instance) error {
 
 	var log = logger.GetServiceLogger(ctx, "zbi.CreateInstance")
 	defer func() { logger.LogServiceTime(log) }()
 
 	dataMgr := vars.ManagerFactory.GetProjectDataManager(ctx)
 
+	var request = instance.Request
 	peers, err := z.GetInstances(ctx, project, request.Peers)
 	if err != nil {
 		log.WithFields(logrus.Fields{"error": err}).Errorf("failed to get peer instances")
@@ -328,7 +329,7 @@ func (z *ZBIClient) CreateInstance(ctx context.Context, project *model.Project, 
 		return err
 	}
 
-	presources, objects, err := dataMgr.CreateInstanceResource(ctx, projectIngress, project, instance, request, peers...)
+	presources, objects, err := dataMgr.CreateInstanceResource(ctx, projectIngress, project, instance, peers...)
 	if err != nil {
 		log.Errorf("instance kubernetes resource generation failed - %s", err)
 		return err
@@ -600,20 +601,21 @@ func (z *ZBIClient) DeleteInstanceResource(ctx context.Context, project *model.P
 	return nil
 }
 
-func (z *ZBIClient) UpdateInstance(ctx context.Context, project *model.Project, instance *model.Instance, request *model.ResourceRequest) error {
+func (z *ZBIClient) UpdateInstance(ctx context.Context, project *model.Project, instance *model.Instance) error {
 
 	var log = logger.GetServiceLogger(ctx, "zbi.UpdateInstance")
 	defer func() { logger.LogServiceTime(log) }()
 
 	dataMgr := vars.ManagerFactory.GetProjectDataManager(ctx)
 
+	var request = instance.Request
 	peers, err := z.GetInstances(ctx, project, request.Peers)
 	if err != nil {
 		log.WithFields(logrus.Fields{"error": err}).Errorf("failed to get peer instances")
 		return err
 	}
 
-	objects, err := dataMgr.CreateUpdateResource(ctx, project, instance, request, peers...)
+	objects, err := dataMgr.CreateUpdateResource(ctx, project, instance, peers...)
 	if err != nil {
 		log.Errorf("instance kubernetes resource generation failed - %s", err)
 		return err

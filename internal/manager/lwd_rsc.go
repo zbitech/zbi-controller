@@ -21,7 +21,7 @@ func NewLWDInstanceResourceManager() interfaces.InstanceResourceManagerIF {
 	return &LWDInstanceResourceManager{}
 }
 
-func (L *LWDInstanceResourceManager) CreateInstanceResource(ctx context.Context, projIngress *unstructured.Unstructured, project *model.Project, instance *model.Instance, request *model.ResourceRequest, peers ...model.Instance) ([][]unstructured.Unstructured, error) {
+func (L *LWDInstanceResourceManager) CreateInstanceResource(ctx context.Context, projIngress *unstructured.Unstructured, project *model.Project, instance *model.Instance, peers ...model.Instance) ([][]unstructured.Unstructured, error) {
 
 	var log = logger.GetServiceLogger(ctx, "lwd.CreateInstanceResource")
 	defer func() { logger.LogServiceTime(log) }()
@@ -31,6 +31,8 @@ func (L *LWDInstanceResourceManager) CreateInstanceResource(ctx context.Context,
 	}
 
 	var dataVolumeName, dataVolumeSize string
+
+	var request = instance.Request
 
 	dataVolumeName = fmt.Sprintf("%s-%s", instance.Name, utils.GenerateRandomString(5, true))
 	dataVolumeSize = request.VolumeSize
@@ -124,7 +126,7 @@ func (L *LWDInstanceResourceManager) CreateInstanceResource(ctx context.Context,
 	return resources, nil
 }
 
-func (L *LWDInstanceResourceManager) CreateUpdateResource(ctx context.Context, project *model.Project, instance *model.Instance, request *model.ResourceRequest, peers ...model.Instance) ([][]unstructured.Unstructured, error) {
+func (L *LWDInstanceResourceManager) CreateUpdateResource(ctx context.Context, project *model.Project, instance *model.Instance, peers ...model.Instance) ([][]unstructured.Unstructured, error) {
 
 	var log = logger.GetServiceLogger(ctx, "lwd.CreateUpdateResource")
 	defer func() { logger.LogServiceTime(log) }()
@@ -134,6 +136,8 @@ func (L *LWDInstanceResourceManager) CreateUpdateResource(ctx context.Context, p
 	if err != nil {
 		return nil, err
 	}
+
+	var request = instance.Request
 
 	//ic, err := helper.Config.GetInstanceConfig(instance.InstanceType)
 	//if err != nil {
@@ -364,12 +368,14 @@ func (L *LWDInstanceResourceManager) CreateRepairResource(ctx context.Context, p
 		return nil, errors.New("lightwallet instances can only be paired with one zcash")
 	}
 
+	var request = instance.Request
+
 	var dataVolumeName, dataVolumeSize string
 
-	request, ok := helper.GetResourceRequest(ctx, instance)
-	if !ok {
-		return nil, errors.New("unable to retrieve resource request for instance")
-	}
+	//request, ok := helper.GetResourceRequest(ctx, instance)
+	//if !ok {
+	//	return nil, errors.New("unable to retrieve resource request for instance")
+	//}
 
 	pvc := instance.GetResourceByType(model.ResourcePersistentVolumeClaim)
 	if pvc != nil && pvc.Status == "active" {

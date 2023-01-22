@@ -143,7 +143,7 @@ func (p ProjectResourceManager) CreateProjectIngressResource(ctx context.Context
 	return []unstructured.Unstructured{appIng, objIng}, nil
 }
 
-func (p ProjectResourceManager) CreateInstanceResource(ctx context.Context, projIngress *unstructured.Unstructured, project *model.Project, instance *model.Instance, request *model.ResourceRequest, peers ...model.Instance) ([]unstructured.Unstructured, [][]unstructured.Unstructured, error) {
+func (p ProjectResourceManager) CreateInstanceResource(ctx context.Context, projIngress *unstructured.Unstructured, project *model.Project, instance *model.Instance, peers ...model.Instance) ([]unstructured.Unstructured, [][]unstructured.Unstructured, error) {
 
 	var log = logger.GetServiceLogger(ctx, "project.CreateInstanceResource")
 	defer func() { logger.LogServiceTime(log) }()
@@ -178,7 +178,7 @@ func (p ProjectResourceManager) CreateInstanceResource(ctx context.Context, proj
 		return nil, nil, err
 	}
 
-	iresources, err := instanceManager.CreateInstanceResource(ctx, projIngress, project, instance, request, peers...)
+	iresources, err := instanceManager.CreateInstanceResource(ctx, projIngress, project, instance, peers...)
 	if err != nil {
 		return nil, nil, err
 	}
@@ -186,13 +186,13 @@ func (p ProjectResourceManager) CreateInstanceResource(ctx context.Context, proj
 	return presources, iresources, nil
 }
 
-func (p ProjectResourceManager) CreateUpdateResource(ctx context.Context, project *model.Project, instance *model.Instance, request *model.ResourceRequest, peers ...model.Instance) ([][]unstructured.Unstructured, error) {
+func (p ProjectResourceManager) CreateUpdateResource(ctx context.Context, project *model.Project, instance *model.Instance, peers ...model.Instance) ([][]unstructured.Unstructured, error) {
 	instanceManager, ok := p.instances[instance.InstanceType]
 	if !ok {
 		return nil, errors.New("resource retrieval error")
 	}
 
-	return instanceManager.CreateUpdateResource(ctx, project, instance, request, peers...)
+	return instanceManager.CreateUpdateResource(ctx, project, instance, peers...)
 }
 
 func (p ProjectResourceManager) CreateStartResource(ctx context.Context, projIngress *unstructured.Unstructured, project *model.Project, instance *model.Instance) ([]unstructured.Unstructured, error) {

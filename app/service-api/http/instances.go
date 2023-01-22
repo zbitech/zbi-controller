@@ -24,9 +24,8 @@ func CreateInstance(w http.ResponseWriter, r *http.Request) {
 	projectName := request.GetParameterValue(r, request.PATH_PARAM, "project")
 
 	var input struct {
-		Project  *model.Project         `json:"project"`
-		Instance *model.Instance        `json:"instance"`
-		Request  *model.ResourceRequest `json:"request"`
+		Project  *model.Project  `json:"project"`
+		Instance *model.Instance `json:"instance"`
 	}
 
 	if err := request.ReadJSON(w, r, &input); err != nil {
@@ -44,7 +43,7 @@ func CreateInstance(w http.ResponseWriter, r *http.Request) {
 	log.WithFields(logrus.Fields{"instance": input.Instance}).Infof("instance details")
 
 	zclient := vars.KlientFactory.GetZBIClient()
-	err := zclient.CreateInstance(ctx, input.Project, input.Instance, input.Request)
+	err := zclient.CreateInstance(ctx, input.Project, input.Instance)
 	if err != nil {
 		//		service.HandleError(ctx, w, r, err)
 		response.ServerErrorResponse(w, r, ctx, err)
@@ -104,9 +103,8 @@ func UpdateInstance(w http.ResponseWriter, r *http.Request) {
 	log.WithFields(logrus.Fields{"project": projectName, "instance": instanceName}).Infof("updating instance")
 
 	var input struct {
-		Project  *model.Project         `json:"project"`
-		Instance *model.Instance        `json:"instance"`
-		Request  *model.ResourceRequest `json:"request"`
+		Project  *model.Project  `json:"project"`
+		Instance *model.Instance `json:"instance"`
 	}
 
 	if err := request.ReadJSON(w, r, &input); err != nil {
@@ -115,9 +113,9 @@ func UpdateInstance(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	log.WithFields(logrus.Fields{"project": input.Project, "instance": input.Instance, "request": input.Request}).Infof("updating instance")
+	log.WithFields(logrus.Fields{"project": input.Project, "instance": input.Instance}).Infof("updating instance")
 	zclient := vars.KlientFactory.GetZBIClient()
-	err := zclient.UpdateInstance(ctx, input.Project, input.Instance, input.Request)
+	err := zclient.UpdateInstance(ctx, input.Project, input.Instance)
 	if err != nil {
 		//		service.HandleError(ctx, w, r, err)
 		response.ServerErrorResponse(w, r, ctx, err)

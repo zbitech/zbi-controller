@@ -10,8 +10,8 @@ import (
 type FakeProjectResourceManager struct {
 	FakeCreateProjectResource          func(ctx context.Context, project *model.Project) ([]unstructured.Unstructured, error)
 	FakeCreateProjectIngressResource   func(ctx context.Context, appIngress *unstructured.Unstructured, project *model.Project, action model.EventAction) ([]unstructured.Unstructured, error)
-	FakeCreateInstanceResource         func(ctx context.Context, projIngress *unstructured.Unstructured, project *model.Project, instance *model.Instance, request *model.ResourceRequest, peers ...model.Instance) ([]unstructured.Unstructured, [][]unstructured.Unstructured, error)
-	FakeCreateUpdateResource           func(ctx context.Context, project *model.Project, instance *model.Instance, request *model.ResourceRequest, peers ...model.Instance) ([][]unstructured.Unstructured, error)
+	FakeCreateInstanceResource         func(ctx context.Context, projIngress *unstructured.Unstructured, project *model.Project, instance *model.Instance, peers ...model.Instance) ([]unstructured.Unstructured, [][]unstructured.Unstructured, error)
+	FakeCreateUpdateResource           func(ctx context.Context, project *model.Project, instance *model.Instance, peers ...model.Instance) ([][]unstructured.Unstructured, error)
 	FakeCreateStartResource            func(ctx context.Context, projIngress *unstructured.Unstructured, project *model.Project, instance *model.Instance) ([]unstructured.Unstructured, error)
 	FakeCreateStopResource             func(ctx context.Context, projIngress *unstructured.Unstructured, project *model.Project, instance *model.Instance) ([]model.KubernetesResource, []unstructured.Unstructured, error)
 	FakeCreateRepairResource           func(ctx context.Context, projIngress *unstructured.Unstructured, project *model.Project, instance *model.Instance, peers ...model.Instance) ([]unstructured.Unstructured, error)
@@ -34,12 +34,12 @@ func (f FakeProjectResourceManager) CreateProjectIngressResource(ctx context.Con
 	return f.FakeCreateProjectIngressResource(ctx, appIngress, project, action)
 }
 
-func (f FakeProjectResourceManager) CreateInstanceResource(ctx context.Context, projIngress *unstructured.Unstructured, project *model.Project, instance *model.Instance, request *model.ResourceRequest, peers ...model.Instance) ([]unstructured.Unstructured, [][]unstructured.Unstructured, error) {
-	return f.FakeCreateInstanceResource(ctx, projIngress, project, instance, request, peers...)
+func (f FakeProjectResourceManager) CreateInstanceResource(ctx context.Context, projIngress *unstructured.Unstructured, project *model.Project, instance *model.Instance, peers ...model.Instance) ([]unstructured.Unstructured, [][]unstructured.Unstructured, error) {
+	return f.FakeCreateInstanceResource(ctx, projIngress, project, instance, peers...)
 }
 
-func (f FakeProjectResourceManager) CreateUpdateResource(ctx context.Context, project *model.Project, instance *model.Instance, request *model.ResourceRequest, peers ...model.Instance) ([][]unstructured.Unstructured, error) {
-	return f.FakeCreateUpdateResource(ctx, project, instance, request, peers...)
+func (f FakeProjectResourceManager) CreateUpdateResource(ctx context.Context, project *model.Project, instance *model.Instance, peers ...model.Instance) ([][]unstructured.Unstructured, error) {
+	return f.FakeCreateUpdateResource(ctx, project, instance, peers...)
 }
 
 func (f FakeProjectResourceManager) CreateStartResource(ctx context.Context, projIngress *unstructured.Unstructured, project *model.Project, instance *model.Instance) ([]unstructured.Unstructured, error) {
