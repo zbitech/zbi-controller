@@ -35,6 +35,7 @@ type SnapshotScheduleRequest struct {
 }
 
 type Project struct {
+	Id        string               `json:"id"`
 	Name      string               `json:"name"`
 	Network   NetworkType          `json:"network"`
 	Owner     string               `json:"owner"`
@@ -44,6 +45,7 @@ type Project struct {
 }
 
 type Instance struct {
+	Id           string               `json:"id"`
 	Name         string               `json:"name"`
 	InstanceType InstanceType         `json:"instanceType"`
 	Project      string               `json:"project,omitempty"`
@@ -70,6 +72,7 @@ type KubernetesResources struct {
 }
 
 type KubernetesResource struct {
+	Id         string                 `json:"id"`
 	Name       string                 `json:"name,omitempty"`
 	Namespace  string                 `json:"namespace,omitempty"`
 	Type       ResourceObjectType     `json:"type,omitempty"`
