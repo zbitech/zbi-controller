@@ -3,9 +3,12 @@ package object
 import "github.com/zbitech/controller/pkg/model"
 
 type Settings struct {
-	Templates      map[string]string `json:"templates"`
-	InformerResync int               `json:"informerResync"`
-	EnableMonitor  bool              `json:"enableMonitor"`
+	EnableRepository      bool              `json:"enableRepository"`
+	Repository            string            `json:"repository"`
+	Templates             map[string]string `json:"templates"`
+	InformerResync        int               `json:"informerResync"`
+	EnableMonitor         bool              `json:"enableMonitor"`
+	RequireAuthentication bool              `json:"requireAuthentication"`
 }
 
 type PolicyConfig struct {
@@ -58,33 +61,6 @@ type InstanceConfig struct {
 	Endpoints    map[string][]string `json:"endpoints"`
 	Ports        map[string]int32    `json:"ports"`
 	Settings     map[string][]KVPair `json:"settings"`
-
-	//Settings     struct {
-	//	Default struct {
-	//		Txindex          int    `json:"txindex"`
-	//		Showmetrics      int    `json:"showmetrics"`
-	//		Logips           int    `json:"logips"`
-	//		Printtoconsole   int    `json:"printtoconsole"`
-	//		Listen           int    `json:"listen"`
-	//		Rpcclienttimeout int    `json:"rpcclienttimeout"`
-	//		Maxconnections   int    `json:"maxconnections"`
-	//		Rpcbind          string `json:"rpcbind"`
-	//		Rpcallowip       string `json:"rpcallowip"`
-	//	} `json:"default"`
-	//	Miner struct {
-	//		Gen            int    `json:"gen"`
-	//		Genproclimit   int    `json:"genproclimit"`
-	//		Equihashsolver string `json:"equihashsolver"`
-	//	} `json:"miner"`
-	//	Testnet struct {
-	//		Testnet int    `json:"testnet"`
-	//		Addnode string `json:"addnode"`
-	//	} `json:"testnet"`
-	//	Mainnet struct {
-	//		Testnet int    `json:"testnet"`
-	//		Addnode string `json:"addnode"`
-	//	} `json:"mainnet"`
-	//}
 }
 
 type AppConfig struct {

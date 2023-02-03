@@ -1,9 +1,10 @@
 {
   "settings": {
-    "controller": "http://localhost:8180",
+    "enableRepository": false,
     "repository": "http://localhost:3000",
     "informerResync": 60,
     "enableMonitor": true,
+    "requireAuthentication": false,
     "templates": {
       "app": "app_templates_v1.tmpl",
       "project": "project_templates_v1.tmpl",

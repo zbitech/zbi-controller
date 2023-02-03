@@ -35,11 +35,7 @@ func CreateInstance(w http.ResponseWriter, r *http.Request) {
 	}
 	log.WithFields(logrus.Fields{"input": input}).Infof("creating new instance")
 
-	//	user := ctx.Value(rctx.USERID).(string)
-	//	input.Instance.Owner = user
 	input.Instance.Project = projectName
-	//	input.Instance.Namespace = projectName
-
 	log.WithFields(logrus.Fields{"instance": input.Instance}).Infof("instance details")
 
 	zclient := vars.KlientFactory.GetZBIClient()
@@ -77,7 +73,6 @@ func DeleteInstance(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	//	log.WithFields(logrus.Fields{"input": input}).Infof("delete %d resources from %s.%s", len(input.Instance.Resources), projectName, instanceName)
 	zclient := vars.KlientFactory.GetZBIClient()
 
 	err = zclient.DeleteInstance(ctx, input.Project, input.Instance)

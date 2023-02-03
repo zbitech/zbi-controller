@@ -31,13 +31,10 @@ const (
 
 type ResourceStatus struct {
 	Resource *model.KubernetesResource
-	//	Type       model.ResourceObjectType
-	//	Name       string
-	Project  string
-	Instance string
-	//	Status     string
-	//	Properties map[string]interface{}
-	//	Timestamp  time.Time
+	Id       string
+	Level    string
+	//	Project  string
+	//	Instance string
 	Ignore bool
 	Reason string
 	Ready  bool
@@ -165,7 +162,7 @@ func (k *KlientMonitor) processEvent(action ResourceAction, rType model.Resource
 				result = &ResourceStatus{Ignore: true}
 			} else {
 				result = &ResourceStatus{Resource: helper.CreateCoreResource(k.ctx, rType, rsc, k.clientSvc), Ignore: false, Reason: "",
-					Ready: true, Project: rsc.Labels["project"], Instance: rsc.Labels["instance"]}
+					Ready: true, Id: rsc.Labels["id"], Level: rsc.Labels["level"]}
 			}
 		case model.ResourceSecret:
 			rsc := kObj.(*corev1.Secret)
@@ -173,7 +170,7 @@ func (k *KlientMonitor) processEvent(action ResourceAction, rType model.Resource
 				result = &ResourceStatus{Ignore: true}
 			} else {
 				result = &ResourceStatus{Resource: helper.CreateCoreResource(k.ctx, rType, rsc, k.clientSvc), Ignore: false, Reason: "",
-					Ready: true, Project: rsc.Labels["project"], Instance: rsc.Labels["instance"]}
+					Ready: true, Id: rsc.Labels["id"], Level: rsc.Labels["level"]}
 			}
 
 		case model.ResourceDeployment:
@@ -188,7 +185,7 @@ func (k *KlientMonitor) processEvent(action ResourceAction, rType model.Resource
 				result = &ResourceStatus{Ignore: true}
 			} else {
 				result = &ResourceStatus{Resource: helper.CreateCoreResource(k.ctx, rType, rsc, k.clientSvc), Ignore: false, Reason: "",
-					Ready: true, Project: rsc.Labels["project"], Instance: rsc.Labels["instance"]}
+					Ready: true, Id: rsc.Labels["id"], Level: rsc.Labels["level"]}
 			}
 
 		case model.ResourcePersistentVolumeClaim:
@@ -221,7 +218,7 @@ func (k *KlientMonitor) processEvent(action ResourceAction, rType model.Resource
 			// k.UpdateResourceStatus(context.Background(), result.Project, result.Instance, result.Resource)
 
 			if result.Ready {
-				k.UpdateResourceStatus(context.Background(), result.Project, result.Instance, result.Resource)
+				k.UpdateResourceStatus(context.Background(), result.Id, result.Level, result.Resource)
 			} else {
 
 				var key string
@@ -320,25 +317,13 @@ func (k *KlientMonitor) processNextItem(ctx context.Context) bool {
 			k.workQueue.Forget(qItem)
 		} else if !exists {
 			log.Warnf("object with key %s no longer exists", qItem.Key)
-			log.Infof("updating project repository - Type: %s, Project: %s, Instance: %s, Object: %s",
-				qItem.Object.Resource.Type, qItem.Object.Project, qItem.Object.Instance, "Deleted")
 
 			k.workQueue.Forget(qItem)
 			qItem.Object.Resource.Status = "deleted"
-			k.UpdateResourceStatus(ctx, qItem.Object.Project, qItem.Object.Instance, qItem.Object.Resource)
+			k.UpdateResourceStatus(ctx, qItem.Object.Id, qItem.Object.Level, qItem.Object.Resource)
 
 		} else {
-			//			if qItem.RequeueCount < 5 {
 			k.processEvent(qItem.Action, qItem.Type, obj, qItem.RequeueCount+1)
-			//			} else {
-			//				if len(qItem.Object.Reason) > 0 {
-			//					log.Infof("updating project repository - Type: %s, Project: %s, Instance: %s, Object: %s",
-			//						qItem.Object.Resource.Type, qItem.Object.Project, qItem.Object.Instance, qItem.Object.Resource.Status)
-			//					//					k.ReportResourceFailureEvent(ctx, qItem.Object.Type, qItem.Object.Project, qItem.Object.Instance, errors.New(qItem.Object.Reason))
-			//				} else {
-			//				k.UpdateResourceStatus(ctx, qItem.Object.Project, qItem.Object.Instance, qItem.Object.Resource)
-			//				//				}
-			//}
 		}
 	} else {
 		log.Errorf("Unable to get indexer for %s", qItem.Type)
@@ -347,36 +332,25 @@ func (k *KlientMonitor) processNextItem(ctx context.Context) bool {
 	return false
 }
 
-func (k *KlientMonitor) UpdateResourceStatus(ctx context.Context, project, instance string, resource *model.KubernetesResource) {
+func (k *KlientMonitor) UpdateResourceStatus(ctx context.Context, id, level string, resource *model.KubernetesResource) {
 
-	var isProject = len(project) > 0
-	var isInstance = len(instance) > 0
+	if helper.Config.GetSettings().EnableRepository {
+		log := logger.GetServiceLogger(ctx, "monitor.UpdateProjectResource")
+		repoService := vars.RepositoryFactory.GetRepositoryService()
 
-	if isProject && isInstance {
-		k.UpdateInstanceResourceStatus(ctx, project, instance, resource)
-	} else if isProject {
-		k.UpdateProjectResourceStatus(ctx, project, resource)
-	}
-}
+		if level == "instance" {
+			log.Infof("updating instance %s resource %s (%s) status - %s", id, resource.Name, resource.Type, resource.Status)
 
-func (k *KlientMonitor) UpdateProjectResourceStatus(ctx context.Context, project string, resource *model.KubernetesResource) {
-	log := logger.GetServiceLogger(ctx, "monitor.UpdateProjectResource")
-	repoService := vars.RepositoryFactory.GetRepositoryService()
+			if err := repoService.UpdateInstanceResource(ctx, id, resource); err != nil {
+				log.Errorf("unable to update instance %s resource %s (%s) - %s", id, resource.Name, resource.Type, err)
+			}
 
-	log.Infof("updating project %s resource %s (%s) status - %s", project, resource.Name, resource.Type, resource.Status)
-	if err := repoService.UpdateProjectResource(ctx, project, resource); err != nil {
-		log.Errorf("unable to update project %s resource %s (%s) - %s", project, resource.Name, resource.Type, err)
-	}
-}
-
-func (k *KlientMonitor) UpdateInstanceResourceStatus(ctx context.Context, project, instance string, resource *model.KubernetesResource) {
-	log := logger.GetServiceLogger(ctx, "monitor.UpdateInstanceResource")
-	repoService := vars.RepositoryFactory.GetRepositoryService()
-
-	log.Infof("updating instance %s.%s resource %s (%s) status - %s", instance, project, resource.Name, resource.Type, resource.Status)
-
-	if err := repoService.UpdateInstanceResource(ctx, project, instance, resource); err != nil {
-		log.Errorf("unable to update instance %s.%s resource %s (%s) - %s", instance, project, resource.Name, resource.Type, err)
+		} else if level == "project" {
+			log.Infof("updating project %s resource %s (%s) status - %s", id, resource.Name, resource.Type, resource.Status)
+			if err := repoService.UpdateProjectResource(ctx, id, resource); err != nil {
+				log.Errorf("unable to update project %s resource %s (%s) - %s", id, resource.Name, resource.Type, err)
+			}
+		}
 	}
 }
 
@@ -404,7 +378,7 @@ func DeploymentEvent(ctx context.Context, action ResourceAction, obj *appsv1.Dep
 		return &ResourceStatus{Ignore: true}
 	}
 
-	resStatus := ResourceStatus{Resource: helper.CreateCoreResource(ctx, model.ResourceDeployment, obj, clientSvc), Project: obj.GetLabels()["project"], Instance: obj.GetLabels()["instance"]}
+	resStatus := ResourceStatus{Resource: helper.CreateCoreResource(ctx, model.ResourceDeployment, obj, clientSvc), Id: obj.GetLabels()["id"], Level: obj.GetLabels()["level"]}
 
 	if action != DeleteResource {
 		resStatus.Ready = resStatus.Resource.Status == "active"
@@ -419,7 +393,7 @@ func PodEvent(ctx context.Context, action ResourceAction, obj *corev1.Pod, clien
 		return &ResourceStatus{Ignore: true}
 	}
 
-	resStatus := ResourceStatus{Resource: helper.CreateCoreResource(ctx, model.ResourcePod, obj, clientSvc), Project: obj.GetLabels()["project"], Instance: obj.GetLabels()["instance"]}
+	resStatus := ResourceStatus{Resource: helper.CreateCoreResource(ctx, model.ResourcePod, obj, clientSvc), Id: obj.GetLabels()["id"], Level: obj.GetLabels()["level"]}
 
 	if action != DeleteResource {
 		resStatus.Ready = resStatus.Resource.Status == "running"
@@ -434,7 +408,7 @@ func PersistentVolumeClaimEvent(ctx context.Context, action ResourceAction, obj 
 		return &ResourceStatus{Ignore: true}
 	}
 
-	resStatus := ResourceStatus{Resource: helper.CreateCoreResource(ctx, model.ResourcePersistentVolumeClaim, obj, clientSvc), Project: obj.GetLabels()["project"], Instance: obj.GetLabels()["instance"]}
+	resStatus := ResourceStatus{Resource: helper.CreateCoreResource(ctx, model.ResourcePersistentVolumeClaim, obj, clientSvc), Id: obj.GetLabels()["id"], Level: obj.GetLabels()["level"]}
 
 	if action != DeleteResource {
 		resStatus.Ready = obj.Status.Phase == corev1.ClaimBound
@@ -449,7 +423,7 @@ func VolumeSnapshotEvent(ctx context.Context, action ResourceAction, obj *unstru
 		return &ResourceStatus{Ignore: true}
 	}
 
-	resStatus := ResourceStatus{Resource: helper.CreateCoreResource(ctx, model.ResourceVolumeSnapshot, obj, clientSvc), Project: obj.GetLabels()["project"], Instance: obj.GetLabels()["instance"]}
+	resStatus := ResourceStatus{Resource: helper.CreateCoreResource(ctx, model.ResourceVolumeSnapshot, obj, clientSvc), Id: obj.GetLabels()["id"], Level: obj.GetLabels()["level"]}
 
 	if action != DeleteResource {
 		resStatus.Ready = resStatus.Resource.Status == "ready"
@@ -463,7 +437,7 @@ func SnapshotScheduleEvent(ctx context.Context, action ResourceAction, obj *unst
 		return &ResourceStatus{Ignore: true}
 	}
 
-	resStatus := ResourceStatus{Resource: helper.CreateCoreResource(ctx, model.ResourceSnapshotSchedule, obj, clientSvc), Project: obj.GetLabels()["project"], Instance: obj.GetLabels()["instance"]}
+	resStatus := ResourceStatus{Resource: helper.CreateCoreResource(ctx, model.ResourceSnapshotSchedule, obj, clientSvc), Id: obj.GetLabels()["id"], Level: obj.GetLabels()["level"]}
 
 	if action != DeleteResource {
 		resStatus.Ready = true
@@ -478,7 +452,7 @@ func IngressEvent(ctx context.Context, action ResourceAction, obj *unstructured.
 		return &ResourceStatus{Ignore: true}
 	}
 
-	resStatus := ResourceStatus{Resource: helper.CreateCoreResource(ctx, model.ResourceHTTPProxy, obj, clientSvc), Project: obj.GetLabels()["project"], Instance: obj.GetLabels()["instance"]}
+	resStatus := ResourceStatus{Resource: helper.CreateCoreResource(ctx, model.ResourceHTTPProxy, obj, clientSvc), Id: obj.GetLabels()["id"], Level: obj.GetLabels()["level"]}
 
 	if action != DeleteResource {
 		resStatus.Ready = resStatus.Resource.Status == "valid"
