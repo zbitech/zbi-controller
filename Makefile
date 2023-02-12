@@ -1,6 +1,6 @@
 #IMAGE_REPO=localhost:5001
 #IMAGE_REPO=jakinyele
-VERSION=v0.0.0
+#VERSION=
 
 compile:
 	go build -v ./...
@@ -41,9 +41,12 @@ run:
 
 image:
 	CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build -o zbi-controller
+#	export VERSION=$(git rev-parse HEAD)
 	docker build -t ${ZBI_REPO}/zbi-controller:latest -t ${ZBI_REPO}/zbi-controller:${VERSION} .
 
-push:
+
+push_ecr:
 	aws ecr get-login-password --region ${AWS_REGION} | docker login --username AWS --password-stdin ${ZBI_REPO}
+#	export VERSION=$(git rev-parse HEAD)
 	docker push ${ZBI_REPO}/zbi-controller:${VERSION}
 	docker push ${ZBI_REPO}/zbi-controller:latest
