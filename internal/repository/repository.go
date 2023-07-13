@@ -5,8 +5,10 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"github.com/sirupsen/logrus"
 	"github.com/zbitech/controller/internal/helper"
 	"github.com/zbitech/controller/pkg/interfaces"
+	"github.com/zbitech/controller/pkg/logger"
 	"github.com/zbitech/controller/pkg/model"
 	"net/http"
 )
@@ -20,15 +22,18 @@ func NewRepositoryService() interfaces.RepositoryServiceIF {
 	return &RepositoryService{}
 }
 
-func (repo *RepositoryService) UpdateProjectResource(ctx context.Context, projectId string, resource *model.KubernetesResource) error {
+func (repo *RepositoryService) UpdateProjectResource(ctx context.Context, project string, resource *model.KubernetesResource) error {
 
-	var repository = helper.Config.GetSettings().Repository + "/projects/" + projectId + "/resources"
+	log := logger.GetServiceLogger(ctx, "repo.UpdateProjectResource")
+
+	var repository = helper.Config.GetSettings().Repository + "/projects/" + project + "/resources"
 	jsonReq, _ := json.Marshal(resource)
 	req, err := http.NewRequest(http.MethodPut, repository, bytes.NewBuffer(jsonReq))
 	if err != nil {
 		return err
 	}
 
+	log.WithFields(logrus.Fields{"repo": repository}).Infof("updating project resource")
 	req.Header.Add("Accept", "application/json")
 	req.Header.Add("Content-Type", "application/json")
 	resp, err := client.Do(req)
@@ -39,6 +44,7 @@ func (repo *RepositoryService) UpdateProjectResource(ctx context.Context, projec
 	if resp.StatusCode == http.StatusOK {
 		return nil
 	} else {
+
 		return errors.New("failed to update project resource")
 	}
 
@@ -46,14 +52,19 @@ func (repo *RepositoryService) UpdateProjectResource(ctx context.Context, projec
 	return nil
 }
 
-func (repo *RepositoryService) UpdateInstanceResource(ctx context.Context, instanceId string, resource *model.KubernetesResource) error {
+func (repo *RepositoryService) UpdateInstanceResource(ctx context.Context, project, instance string, resource *model.KubernetesResource) error {
 
-	var repository = helper.Config.GetSettings().Repository + "/instances/" + instanceId + "/resources"
+	log := logger.GetServiceLogger(ctx, "repo.UpdateInstanceResource")
+
+	var repository = helper.Config.GetSettings().Repository + "/projects/" + project + "/instances/" + instance + "/resources"
 	jsonReq, _ := json.Marshal(resource)
 	req, err := http.NewRequest(http.MethodPut, repository, bytes.NewBuffer(jsonReq))
 	if err != nil {
+		log.Errorf("failed to update instance resource: %s", err)
 		return err
 	}
+
+	log.WithFields(logrus.Fields{"repo": repository}).Infof("updating instance resource")
 
 	req.Header.Add("Accept", "application/json")
 	req.Header.Add("Content-Type", "application/json")
@@ -65,6 +76,7 @@ func (repo *RepositoryService) UpdateInstanceResource(ctx context.Context, insta
 	if resp.StatusCode == http.StatusOK {
 		return nil
 	} else {
+		log.WithFields(logrus.Fields{"status": resp.StatusCode, "detail": resp.Body}).Errorf("failed to update instance resource")
 		return errors.New("failed to update instance resource")
 	}
 

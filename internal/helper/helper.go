@@ -177,11 +177,17 @@ func CreateCoreResource(ctx context.Context, rType model.ResourceObjectType, res
 		podMap := make(map[string]interface{})
 		for _, p := range pods {
 			startTime := time.Now()
+			pod_status := strings.ToLower(string(p.Status.Phase))
+
+			if pod_status != "running" {
+				status = "progressing"
+			}
+
 			if p.Status.StartTime != nil {
 				startTime = p.Status.StartTime.Time
 			}
 			podMap[p.Name] = map[string]interface{}{
-				"status":    strings.ToLower(string(p.Status.Phase)),
+				"status":    pod_status,
 				"startTime": startTime,
 			}
 		}
@@ -425,7 +431,6 @@ func CreateProjectLabels(project *model.Project) map[string]string {
 		"owner":    project.Owner,
 		"team":     project.TeamId,
 		"network":  string(project.Network),
-		"id":       project.Id,
 		"level":    "project",
 	}
 }
@@ -436,7 +441,6 @@ func CreateInstanceLabels(instance *model.Instance) map[string]string {
 		"project":  instance.Project,
 		"instance": instance.Name,
 		"type":     string(instance.InstanceType),
-		"id":       instance.Id,
 		"level":    "instance",
 	}
 }

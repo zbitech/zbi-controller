@@ -73,6 +73,9 @@ func (tc *TemplateConfig) LoadConfig(ctx context.Context) {
 	}
 
 	tc.SetConfig(appConfig)
+
+	settings, _ := json.Marshal(tc)
+	log.WithFields(logrus.Fields{"content": string(settings)}).Infof("config settings")
 }
 
 func (tc *TemplateConfig) LoadTemplates(ctx context.Context) {

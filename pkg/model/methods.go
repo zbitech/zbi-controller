@@ -105,9 +105,9 @@ func (instance *Instance) AddResources(resources ...KubernetesResource) {
 }
 
 func (instance *Instance) HasResources() bool {
-	return len(instance.Resources.Resources) > 0 ||
+	return instance.Resources != nil && (len(instance.Resources.Resources) > 0 ||
 		len(instance.Resources.Snapshots) > 0 ||
-		len(instance.Resources.Schedules) > 0
+		len(instance.Resources.Schedules) > 0)
 }
 
 func (instance *Instance) GetResources() []KubernetesResource {
