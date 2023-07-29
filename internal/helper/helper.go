@@ -432,6 +432,7 @@ func CreateProjectLabels(project *model.Project) map[string]string {
 		"team":     project.TeamId,
 		"network":  string(project.Network),
 		"level":    "project",
+		"id":       project.Id,
 	}
 }
 
@@ -441,6 +442,7 @@ func CreateInstanceLabels(instance *model.Instance) map[string]string {
 		"project":  instance.Project,
 		"instance": instance.Name,
 		"type":     string(instance.InstanceType),
+		"id":       instance.Id,
 		"level":    "instance",
 	}
 }

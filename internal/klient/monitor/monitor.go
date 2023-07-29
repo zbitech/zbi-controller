@@ -33,11 +33,11 @@ type ResourceStatus struct {
 	Resource *model.KubernetesResource
 	Id       string
 	Level    string
-	Project  string
-	Instance string
-	Ignore   bool
-	Reason   string
-	Ready    bool
+	//	Project  string
+	//	Instance string
+	Ignore bool
+	Reason string
+	Ready  bool
 }
 
 type KlientInformer struct {
@@ -156,13 +156,22 @@ func (k *KlientMonitor) processEvent(action ResourceAction, rType model.Resource
 
 		switch rType {
 
+		case model.ResourceNamespace:
+			rsc := kObj.(*corev1.Namespace)
+			if !isZBIObject(rsc.Labels) {
+				result = &ResourceStatus{Ignore: true}
+			} else {
+				result = &ResourceStatus{Resource: helper.CreateCoreResource(k.ctx, rType, rsc, k.clientSvc), Ignore: false, Reason: "",
+					Ready: true, Id: rsc.Labels["id"], Level: rsc.Labels["level"]}
+			}
+
 		case model.ResourceConfigMap:
 			rsc := kObj.(*corev1.ConfigMap)
 			if !isZBIObject(rsc.Labels) {
 				result = &ResourceStatus{Ignore: true}
 			} else {
 				result = &ResourceStatus{Resource: helper.CreateCoreResource(k.ctx, rType, rsc, k.clientSvc), Ignore: false, Reason: "",
-					Ready: true, Project: rsc.Labels["project"], Instance: rsc.Labels["instance"], Level: rsc.Labels["level"]}
+					Ready: true, Id: rsc.Labels["id"], Level: rsc.Labels["level"]}
 			}
 		case model.ResourceSecret:
 			rsc := kObj.(*corev1.Secret)
@@ -170,7 +179,7 @@ func (k *KlientMonitor) processEvent(action ResourceAction, rType model.Resource
 				result = &ResourceStatus{Ignore: true}
 			} else {
 				result = &ResourceStatus{Resource: helper.CreateCoreResource(k.ctx, rType, rsc, k.clientSvc), Ignore: false, Reason: "",
-					Ready: true, Project: rsc.Labels["project"], Instance: rsc.Labels["instance"], Level: rsc.Labels["level"]}
+					Ready: true, Id: rsc.Labels["id"], Level: rsc.Labels["level"]}
 			}
 
 		case model.ResourceDeployment:
@@ -185,7 +194,7 @@ func (k *KlientMonitor) processEvent(action ResourceAction, rType model.Resource
 				result = &ResourceStatus{Ignore: true}
 			} else {
 				result = &ResourceStatus{Resource: helper.CreateCoreResource(k.ctx, rType, rsc, k.clientSvc), Ignore: false, Reason: "",
-					Ready: true, Project: rsc.Labels["project"], Instance: rsc.Labels["instance"], Level: rsc.Labels["level"]}
+					Ready: true, Id: rsc.Labels["id"], Level: rsc.Labels["level"]}
 			}
 
 		case model.ResourcePersistentVolumeClaim:
@@ -218,7 +227,7 @@ func (k *KlientMonitor) processEvent(action ResourceAction, rType model.Resource
 			// k.UpdateResourceStatus(context.Background(), result.Project, result.Instance, result.Resource)
 
 			if result.Ready {
-				k.UpdateResourceStatus(context.Background(), result.Project, result.Instance, result.Level, result.Resource)
+				k.UpdateResourceStatus(context.Background(), result.Id, result.Level, result.Resource)
 			} else {
 
 				var key string
@@ -321,7 +330,7 @@ func (k *KlientMonitor) processNextItem(ctx context.Context) bool {
 			k.workQueue.Forget(qItem)
 			qItem.Object.Resource.Status = "deleted"
 			qItem.Object.Resource.Properties = make(map[string]interface{})
-			k.UpdateResourceStatus(ctx, qItem.Object.Project, qItem.Object.Instance, qItem.Object.Level, qItem.Object.Resource)
+			k.UpdateResourceStatus(ctx, qItem.Object.Id, qItem.Object.Level, qItem.Object.Resource)
 
 		} else {
 			k.processEvent(qItem.Action, qItem.Type, obj, qItem.RequeueCount+1)
@@ -333,23 +342,23 @@ func (k *KlientMonitor) processNextItem(ctx context.Context) bool {
 	return false
 }
 
-func (k *KlientMonitor) UpdateResourceStatus(ctx context.Context, project, instance, level string, resource *model.KubernetesResource) {
+func (k *KlientMonitor) UpdateResourceStatus(ctx context.Context, id, level string, resource *model.KubernetesResource) {
 
 	if helper.Config.GetSettings().EnableRepository {
 		log := logger.GetServiceLogger(ctx, "monitor.UpdateProjectResource")
 		repoService := vars.RepositoryFactory.GetRepositoryService()
 
 		if level == "instance" {
-			log.Infof("updating instance %s resource %s (%s) status - %s", instance, resource.Name, resource.Type, resource.Status)
+			log.Infof("updating instance %s resource %s (%s) status - %s", id, resource.Name, resource.Type, resource.Status)
 
-			if err := repoService.UpdateInstanceResource(ctx, project, instance, resource); err != nil {
-				log.Errorf("unable to update instance %s resource %s (%s) - %s", instance, resource.Name, resource.Type, err)
+			if err := repoService.UpdateInstanceResource(ctx, id, resource); err != nil {
+				log.Errorf("unable to update instance %s resource %s (%s) - %s", id, resource.Name, resource.Type, err)
 			}
 
 		} else if level == "project" {
-			log.Infof("updating project %s resource %s (%s) status - %s", instance, resource.Name, resource.Type, resource.Status)
-			if err := repoService.UpdateProjectResource(ctx, project, resource); err != nil {
-				log.Errorf("unable to update project %s resource %s (%s) - %s", instance, resource.Name, resource.Type, err)
+			log.Infof("updating project %s resource %s (%s) status - %s", id, resource.Name, resource.Type, resource.Status)
+			if err := repoService.UpdateProjectResource(ctx, id, resource); err != nil {
+				log.Errorf("unable to update project %s resource %s (%s) - %s", id, resource.Name, resource.Type, err)
 			}
 		}
 	}
@@ -380,7 +389,7 @@ func DeploymentEvent(ctx context.Context, action ResourceAction, obj *appsv1.Dep
 	}
 
 	resStatus := ResourceStatus{Resource: helper.CreateCoreResource(ctx, model.ResourceDeployment, obj, clientSvc),
-		Project: obj.GetLabels()["project"], Instance: obj.GetLabels()["instance"], Level: obj.GetLabels()["level"]}
+		Id: obj.GetLabels()["id"], Level: obj.GetLabels()["level"]}
 
 	if action != DeleteResource {
 		resStatus.Ready = resStatus.Resource.Status == "active"
@@ -396,7 +405,7 @@ func PodEvent(ctx context.Context, action ResourceAction, obj *corev1.Pod, clien
 	}
 
 	resStatus := ResourceStatus{Resource: helper.CreateCoreResource(ctx, model.ResourcePod, obj, clientSvc),
-		Project: obj.GetLabels()["project"], Instance: obj.GetLabels()["instance"], Level: obj.GetLabels()["level"]}
+		Id: obj.GetLabels()["id"], Level: obj.GetLabels()["level"]}
 
 	if action != DeleteResource {
 		resStatus.Ready = resStatus.Resource.Status == "running"
@@ -412,7 +421,7 @@ func PersistentVolumeClaimEvent(ctx context.Context, action ResourceAction, obj 
 	}
 
 	resStatus := ResourceStatus{Resource: helper.CreateCoreResource(ctx, model.ResourcePersistentVolumeClaim, obj, clientSvc),
-		Project: obj.GetLabels()["project"], Instance: obj.GetLabels()["instance"], Level: obj.GetLabels()["level"]}
+		Id: obj.GetLabels()["id"], Level: obj.GetLabels()["level"]}
 
 	if action != DeleteResource {
 		resStatus.Ready = obj.Status.Phase == corev1.ClaimBound
@@ -428,7 +437,7 @@ func VolumeSnapshotEvent(ctx context.Context, action ResourceAction, obj *unstru
 	}
 
 	resStatus := ResourceStatus{Resource: helper.CreateCoreResource(ctx, model.ResourceVolumeSnapshot, obj, clientSvc),
-		Project: obj.GetLabels()["project"], Instance: obj.GetLabels()["instance"], Level: obj.GetLabels()["level"]}
+		Id: obj.GetLabels()["id"], Level: obj.GetLabels()["level"]}
 
 	if action != DeleteResource {
 		resStatus.Ready = resStatus.Resource.Status == "ready"
@@ -443,7 +452,7 @@ func SnapshotScheduleEvent(ctx context.Context, action ResourceAction, obj *unst
 	}
 
 	resStatus := ResourceStatus{Resource: helper.CreateCoreResource(ctx, model.ResourceSnapshotSchedule, obj, clientSvc),
-		Project: obj.GetLabels()["project"], Instance: obj.GetLabels()["instance"], Level: obj.GetLabels()["level"]}
+		Id: obj.GetLabels()["id"], Level: obj.GetLabels()["level"]}
 
 	if action != DeleteResource {
 		resStatus.Ready = true
@@ -459,7 +468,7 @@ func IngressEvent(ctx context.Context, action ResourceAction, obj *unstructured.
 	}
 
 	resStatus := ResourceStatus{Resource: helper.CreateCoreResource(ctx, model.ResourceHTTPProxy, obj, clientSvc),
-		Project: obj.GetLabels()["project"], Instance: obj.GetLabels()["instance"], Level: obj.GetLabels()["level"]}
+		Id: obj.GetLabels()["id"], Level: obj.GetLabels()["level"]}
 
 	if action != DeleteResource {
 		resStatus.Ready = resStatus.Resource.Status == "valid"

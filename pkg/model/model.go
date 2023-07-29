@@ -35,7 +35,7 @@ type SnapshotScheduleRequest struct {
 }
 
 type Project struct {
-	//	Id        string               `json:"id"`
+	Id        string               `json:"id"`
 	Name      string               `json:"name"`
 	Network   NetworkType          `json:"network"`
 	Owner     string               `json:"owner"`
@@ -45,7 +45,7 @@ type Project struct {
 }
 
 type Instance struct {
-	//	Id           string               `json:"id"`
+	Id           string               `json:"id"`
 	Name         string               `json:"name"`
 	InstanceType InstanceType         `json:"instanceType"`
 	Project      string               `json:"project,omitempty"`

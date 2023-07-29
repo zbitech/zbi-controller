@@ -52,11 +52,13 @@ func (repo *RepositoryService) UpdateProjectResource(ctx context.Context, projec
 	return nil
 }
 
-func (repo *RepositoryService) UpdateInstanceResource(ctx context.Context, project, instance string, resource *model.KubernetesResource) error {
+func (repo *RepositoryService) UpdateInstanceResource(ctx context.Context, instance string, resource *model.KubernetesResource) error {
 
 	log := logger.GetServiceLogger(ctx, "repo.UpdateInstanceResource")
 
-	var repository = helper.Config.GetSettings().Repository + "/projects/" + project + "/instances/" + instance + "/resources"
+	//	var repository = helper.Config.GetSettings().Repository + "/projects/" + project + "/instances/" + instance + "/resources"
+	var repository = helper.Config.GetSettings().Repository + "/instances/" + instance + "/resources"
+
 	jsonReq, _ := json.Marshal(resource)
 	req, err := http.NewRequest(http.MethodPut, repository, bytes.NewBuffer(jsonReq))
 	if err != nil {
