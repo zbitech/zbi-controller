@@ -5,7 +5,7 @@ metadata:
   labels:
     {{- include "zbi.labels" . | nindent 4 }}
 data:
-{{ tpl (.Files.Glob "zbi-conf/*").AsConfig . | indent 2 }}
+{{ tpl (.Files.Glob "zbi-conf/zbi-conf.json").AsConfig . | indent 2 }}
 ---
 apiVersion: v1
 kind: ConfigMap

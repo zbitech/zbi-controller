@@ -36,9 +36,9 @@ func (k *KlientFactory) Init(ctx context.Context, repoSvc interfaces.RepositoryS
 
 	if helper.Config.GetSettings().EnableMonitor {
 		k.rscMon = monitor.NewKlientMonitor(ctx, clientSvc, repoSvc)
-		rtypes := []model.ResourceObjectType{model.ResourceConfigMap, model.ResourceSecret, model.ResourceDeployment, model.ResourceService,
-			model.ResourcePersistentVolumeClaim, model.ResourceVolumeSnapshot, model.ResourceSnapshotSchedule, model.ResourceHTTPProxy,
-			model.ResourcePod}
+		rtypes := []model.ResourceObjectType{model.ResourceNamespace, model.ResourceConfigMap, model.ResourceSecret, model.ResourceDeployment,
+			model.ResourceService, model.ResourcePersistentVolumeClaim, model.ResourceVolumeSnapshot, model.ResourceSnapshotSchedule,
+			model.ResourceHTTPProxy}
 
 		for _, rtype := range rtypes {
 			log.Infof("Adding %s informer", rtype)

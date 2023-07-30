@@ -17,7 +17,7 @@ spec:
     metadata:
       annotations:
         configmap.reloader.stakater.com/reload: "{{ include "zbi.fullname" . }}-cm-conf,{{ include "zbi.fullname" . }}-cm-tmpl"
-        secret.reloader.stakater.com/reload: "zbi-password,zbi-database"
+#        secret.reloader.stakater.com/reload: "zbi-password,zbi-database"
       labels:
         {{- include "zbi.labels" . | nindent 8 }}
         app.zbi.instance: controller
@@ -37,33 +37,33 @@ spec:
           env:
             - name: ASSET_PATH_DIRECTORY
               value: /etc/zbi
-            - name: DATABASE_FACTORY
-              value: {{ .Values.controller.database.type}}
-            - name: DATABASE_URL
-              valueFrom:
-                secretKeyRef:
-                  name: zbi-database
-                  key: connectionString
+#            - name: DATABASE_FACTORY
+#              value: {{ .Values.controller.database.type}}
+#            - name: DATABASE_URL
+#              valueFrom:
+#                secretKeyRef:
+#                  name: zbi-database
+#                  key: connectionString
             - name: ZBI_LOG_LEVEL
               valueFrom:
                 configMapKeyRef:
                   name: {{ include "zbi.fullname" . }}-cm-vars
                   key: log_level
-            - name: ZBI_ADMIN_USER
-              valueFrom:
-                configMapKeyRef:
-                  name: {{ include "zbi.fullname" . }}-cm-vars
-                  key: admin_user
-            - name: ZBI_ADMIN_EMAIL
-              valueFrom:
-                configMapKeyRef:
-                  name: {{ include "zbi.fullname" . }}-cm-vars
-                  key: admin_email
-            - name: ZBI_ADMIN_PASSWORD
-              valueFrom:
-                secretKeyRef:
-                  name: zbi-password
-                  key: password
+#            - name: ZBI_ADMIN_USER
+#              valueFrom:
+#                configMapKeyRef:
+#                  name: {{ include "zbi.fullname" . }}-cm-vars
+#                  key: admin_user
+#            - name: ZBI_ADMIN_EMAIL
+#              valueFrom:
+#                configMapKeyRef:
+#                  name: {{ include "zbi.fullname" . }}-cm-vars
+#                  key: admin_email
+#            - name: ZBI_ADMIN_PASSWORD
+#              valueFrom:
+#                secretKeyRef:
+#                  name: zbi-password
+#                  key: password
           volumeMounts:
             - name: zbi-cm-conf
               mountPath: /etc/zbi
