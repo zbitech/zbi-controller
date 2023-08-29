@@ -3,8 +3,8 @@
 # Declare variables to be passed into your templates.
 
 image:
-#  repository: jakinyele/zbi-controller
-  repository: 169178127784.dkr.ecr.us-east-1.amazonaws.com/zbi-controller
+  repository: jakinyele/zbi-controller
+#  repository: 169178127784.dkr.ecr.us-east-1.amazonaws.com/zbi-controller
   pullPolicy: IfNotPresent
 # Overrides the image tag whose default is the chart appVersion.
 #  tag: "v0.0.0"

@@ -55,8 +55,11 @@ func (z *ZcashInstanceResourceManager) CreateInstanceResource(ctx context.Contex
 	}
 
 	var request = instance.Request
+	var miner = false
 	//	txIndex := instance.Properties["transactionIndex"].(bool)
-	miner := request.Properties[MINER_ZCASH_PROPERTY].(bool)
+	if _, ok := request.Properties[MINER_ZCASH_PROPERTY]; ok {
+		miner = request.Properties[MINER_ZCASH_PROPERTY].(bool)
+	}
 	//	peers := instance.Properties["peers"].([]interface{})
 
 	rpcport := strconv.FormatInt(int64(ic.GetPort(SERVICE_PORT)), 10)

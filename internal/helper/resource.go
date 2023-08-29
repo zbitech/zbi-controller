@@ -21,9 +21,8 @@ type TemplateConfig struct {
 	projectTemplate  *file_template.FileTemplate
 }
 
-var ASSET_PATH_DIR = GetEnv("ASSET_PATH_DIRECTORY", "etc/zbi/")
-var CONFIG_DIR = GetEnv("ZBI_CONFIG_DIRECTORY", "/etc/zbi/conf")
-var TEMPLATE_DIR = GetEnv("ZBI_TEMPLATE_DIRECTORY", "etc/zbi/templates")
+var CONFIG_DIR = GetEnv("ZBI_CONFIG_DIRECTORY", "/etc/zbi/conf/")
+var TEMPLATE_DIR = GetEnv("ZBI_TEMPLATE_DIRECTORY", "/etc/zbi/templates/")
 var CONFIG_FILE = "zbi-conf.json"
 
 var Config *TemplateConfig = newTemplateConfig()

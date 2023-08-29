@@ -1,7 +1,7 @@
 apiVersion: apps/v1
 kind: Deployment
 metadata:
-  name: {{ include "zbi.fullname" . }}-controller
+  name: {{ include "zbi.fullname" . }}-app
   labels:
     {{- include "zbi.labels" . | nindent 4 }}
     app.zbi.instance: controller
@@ -35,38 +35,18 @@ spec:
           image: "{{ .Values.image.repository }}:{{ .Values.image.tag | default .Chart.AppVersion }}"
           imagePullPolicy: {{ .Values.image.pullPolicy }}
           env:
-            - name: ASSET_PATH_DIRECTORY
-              value: /etc/zbi
-#            - name: DATABASE_FACTORY
-#              value: {{ .Values.controller.database.type}}
-#            - name: DATABASE_URL
-#              valueFrom:
-#                secretKeyRef:
-#                  name: zbi-database
-#                  key: connectionString
+            - name: ZBI_CONFIG_DIRECTORY
+              value: /etc/zbi/conf/
+            - name: ZBI_TEMPLATE_DIRECTORY
+              value: /etc/zbi/templates/
             - name: ZBI_LOG_LEVEL
               valueFrom:
                 configMapKeyRef:
                   name: {{ include "zbi.fullname" . }}-cm-vars
                   key: log_level
-#            - name: ZBI_ADMIN_USER
-#              valueFrom:
-#                configMapKeyRef:
-#                  name: {{ include "zbi.fullname" . }}-cm-vars
-#                  key: admin_user
-#            - name: ZBI_ADMIN_EMAIL
-#              valueFrom:
-#                configMapKeyRef:
-#                  name: {{ include "zbi.fullname" . }}-cm-vars
-#                  key: admin_email
-#            - name: ZBI_ADMIN_PASSWORD
-#              valueFrom:
-#                secretKeyRef:
-#                  name: zbi-password
-#                  key: password
           volumeMounts:
             - name: zbi-cm-conf
-              mountPath: /etc/zbi
+              mountPath: /etc/zbi/conf
               readOnly: true
             - name: zbi-cm-tmpl
               mountPath: /etc/zbi/templates

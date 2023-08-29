@@ -4,7 +4,7 @@
 apiVersion: projectcontour.io/v1
 kind: HTTPProxy
 metadata:
-  name: controller-proxy
+  name: {{ include "zbi.fullname" . }}-proxy
   labels:
     {{- include "zbi.labels" . | nindent 4 }}
   {{- with .Values.ingress.controller.annotations }}
